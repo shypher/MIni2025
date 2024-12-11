@@ -8,7 +8,10 @@ from PIL import Image, ImageTk
 from src.colour import Colour
 from src.piece import Piece
 
-
+def log(message, file_path="tournament_log.txt"):
+    with open(file_path, "a") as log_file:
+        log_file.write(message + "\n")
+    print(message)
 class Board:
     def __init__(self):
         self.__pieces = []
@@ -172,8 +175,8 @@ class Board:
         self.root.mainloop()
 
     def print_board(self):
-        print("  13                  18   19                  24   25")
-        print("---------------------------------------------------")
+        log("  13                  18   19                  24   25")
+        log("---------------------------------------------------")
         line = "|"
         for i in range(13, 18 + 1):
             line = line + self.__pieces_at_text(i)
@@ -182,9 +185,9 @@ class Board:
             line = line + self.__pieces_at_text(i)
         line = line + "|"
         line = line + self.__pieces_at_text(self.__taken_location(Colour.BLACK))
-        print(line)
+        log(line)
         for _ in range(3):
-            print("|                        |                        |")
+            log("|                        |                        |")
         line = "|"
         for i in reversed(range(7, 12+1)):
             line = line + self.__pieces_at_text(i)
@@ -193,9 +196,9 @@ class Board:
             line = line + self.__pieces_at_text(i)
         line = line + "|"
         line = line + self.__pieces_at_text(self.__taken_location(Colour.WHITE))
-        print(line)
-        print("---------------------------------------------------")
-        print("  12                  7    6                   1    0")
+        log(line)
+        log("---------------------------------------------------")
+        log("  12                  7    6                   1    0")
         #self.update_gui()
 
     def to_json(self):

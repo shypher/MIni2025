@@ -1,5 +1,6 @@
 from src.compare_all_moves_strategy import CompareAllMovesSimple
 from src.strategies import MoveFurthestBackStrategy, HumanStrategy, MoveRandomPiece
+from src.MinMax import MinMax_shayOren
 
 
 class StrategyFactory:
@@ -14,6 +15,7 @@ class StrategyFactory:
     @staticmethod
     def get_all():
         strategies = [
+            MinMax_shayOren,
             MoveRandomPiece,
             MoveFurthestBackStrategy,
             CompareAllMovesSimple,

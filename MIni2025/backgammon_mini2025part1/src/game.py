@@ -1,13 +1,15 @@
 import json
 from random import randint
 import threading
-
 from src.board import Board
 from src.colour import Colour
 from src.strategies import Strategy
 from src.move_not_possible_exception import MoveNotPossibleException
 
-
+def log(message, file_path="tournament_log.txt"):
+    with open(file_path, "a") as log_file:
+        log_file.write(message + "\n")
+    print(message)
 class ReadOnlyBoard:
     board: Board
 
@@ -44,7 +46,7 @@ class Game:
 
     def run_game(self, verbose=True):
         if verbose:
-            print('%s goes first' % self.first_player)
+            log('%s goes first' % self.first_player)
             self.board.print_board()
         i = self.first_player.value
         moves = []
@@ -59,7 +61,7 @@ class Game:
             full_dice_roll = dice_roll.copy()
             colour = Colour(i % 2)
             if verbose:
-                print("%s rolled %s" % (colour, dice_roll))
+                log("%s rolled %s" % (colour, dice_roll))
 
             def handle_move(location, die_roll):
                 rolls_to_move = self.get_rolls_to_move(location, die_roll, dice_roll)
@@ -102,7 +104,7 @@ class Game:
             if self.time_limit > 0 and not move_made.is_set(): 
                 stop_input_event.set()  # Stop input in strategies.py
                 if verbose:
-                    print('%s did not make a move in time. Skipping turn.' % colour)
+                    log('%s did not make a move in time. Skipping turn.' % colour)
                 # Skip the turn and continue to the next player
                 i += 1
                 stop_input_event.clear()  # Clear the stop input event
@@ -111,7 +113,7 @@ class Game:
             # **Insert the game ending check here**
             if self.board.has_game_ended():  # Check if the game has ended
                 if verbose:
-                    print(f"{self.board.who_won()} has won the game!")
+                    log(f"{self.board.who_won()} has won the game!")
                 stop_input_event.set()  # Stop input in strategies.py as the game is over
                 return  # Exit the loop and end the game
 
