@@ -3,8 +3,6 @@ import copy
 import json
 import threading
 import tkinter as tk
-from PIL import Image, ImageTk
-
 from src.colour import Colour
 from src.piece import Piece
 

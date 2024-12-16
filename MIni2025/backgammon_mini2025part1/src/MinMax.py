@@ -2,6 +2,8 @@ from src.strategies import Strategy
 from src.piece import Piece
 from fractions import Fraction
 import time
+import threading
+from itertools import permutations
 def log(message, file_path="tournament_log.txt"):
     with open(file_path, "a") as log_file:
         log_file.write(message + "\n")
@@ -12,7 +14,7 @@ class MinMax_shayOren(Strategy):
     def get_difficulty():
         return "shimy"
     def __init__(self):
-        self.saved_tree = None  
+        tree = None
     def assess_board(self, colour, myboard):
         pieces = myboard.get_pieces(colour)
         opponent_pieces = myboard.get_pieces(colour.other())
@@ -48,294 +50,117 @@ class MinMax_shayOren(Strategy):
     def move(self, board, colour, dice_roll, make_move, opponents_activity):
         log("minimax")
         start_time = time.time()
-        time_limit = board.getTheTimeLim() - 0.1
-        with open("tree.txt", "a") as tree_log:
-            best_move = self.minmax(board, colour, dice_roll, depth=4, maximizing_player=True,\
-                alpha=float('-inf'), beta=float('inf'), start_time=start_time, time_limit=time_limit, tree_log=tree_log)
-            tree_log.write(f"\n-----------------------------------------------------\n")
-        if len(best_move['best_moves']) >0:
-            for move in best_move['best_moves']:
+
+        self.time_limit = board.getTheTimeLim() - 0.2
+        possible_state =  self.get_all_possible_moves(board, colour, dice_roll , start_time, self.time_limit)
+        best_val = float('-inf')
+        best_moves = []
+        for new_board, moves in possible_state.items():
+            if time.time() - start_time > self.time_limit:
+                break
+            val = self.minmax(new_board, colour, depth=4, maximizing_player=True, alpha=float('-inf'), beta=float('inf'), start_time=start_time, time_limit=self.time_limit)
+            if val > best_val:
+                best_val = val
+                best_moves = moves
+        if len(best_moves) != 0:
+            for move in best_moves:
                 log(f"Moving piece at {move['piece_at']} to {move['piece_at'] + move['die_roll']}")
                 make_move(move['piece_at'], move['die_roll'])
-        else:
-            log("No valid moves found.")   
-        log(f"Best move: {best_move}")
-    
-    def minmax(self, board, colour, dice_rolls, depth, maximizing_player, alpha, beta, start_time, time_limit, tree_log=None):
+        return
+    def minmax(self, board, colour, depth, maximizing_player, alpha, beta, start_time, time_limit):
         if time.time() - start_time > time_limit:
-            return {'best_moves': [], 'value': self.evaluate_board(board, colour)}
-        
+            return float('-inf') if maximizing_player else float('inf') #meybe self.evaluate_board(board, colour)
         if depth == 0:
-            if tree_log:
-                tree_log.write(f"{'|   ' * depth}Depth {depth}: {'Max' if maximizing_player else 'Min'} Player\n")
-            return {'best_moves': [], 'value': self.evaluate_board(board, colour)} 
-        
-        current_colour = colour if maximizing_player else colour.other()
+            return self.evaluate_board(board, colour)
+        dice_rolls = []
+        for diceA in range(1,7):
+            for diceB in range(diceA, 7):
+                if (diceA!=diceB):
+                    dice_rolls_prop = [diceA, diceB]
+                else:
+                    dice_rolls = [diceA, diceA, diceA, diceA]
+                posible_states = self.get_all_possible_moves(board, colour, dice_rolls, start_time, time_limit)
         
         if maximizing_player:
-            max_value = float('-inf')
-            best_moves = []
-            
-            # Try all combinations of current player's dice rolls
-            for dice_combination in self.generate_dice_combinations(dice_rolls):
-                remaining_dice = [die for die in dice_rolls if die not in dice_combination]
-                
-                # Get all possible moves for the current dice combination
-                possible_moves = []
-                for dice in dice_combination:
-                    moves = self.get_all_possible_moves2(board, current_colour, dice)
-                    possible_moves.extend(moves)
-                
-                for move in possible_moves:
-                    new_board = board.create_copy()
-                    piece = new_board.get_piece_at(move['piece_at'])
-                    new_board.move_piece(piece, move['die_roll'])
-                    
-                    # If no more dice, consider all possible opponent dice rolls
-                    if not remaining_dice:
-                        worst_value = float('inf')
-                        # Generate all possible dice roll combinations for the opponent
-                        for opponent_dice_rolls in self.generate_all_dice_combinations():
-                            value = self.minmax(new_board, colour.other(), opponent_dice_rolls, depth - 1, False, alpha, beta, start_time, time_limit, tree_log)
-                            worst_value = min(worst_value, value['value'])
-                        
-                        # Use the worst (minimum) value for the maximizing player
-                        current_value = worst_value
-                    else:
-                        # Continue with remaining dice
-                        value = self.minmax(new_board, colour, remaining_dice, depth, False, alpha, beta, start_time, time_limit, tree_log)
-                        current_value = value['value']
-                    
-                    # Update best moves
-                    if current_value > max_value:
-                        max_value = current_value
-                        best_moves = [move]
-                    elif current_value == max_value:
-                        best_moves.append(move)
-                    
-                    # Alpha-beta pruning
-                    alpha = max(alpha, current_value)
-                    if beta <= alpha:
-                        break
-            
-            return {'best_moves': best_moves, 'value': max_value}
-        
-        else:  # Minimizing player
-            min_value = float('inf')
-            best_moves = []
-            
-            # Try all combinations of current player's dice rolls
-            for dice_combination in self.generate_dice_combinations(dice_rolls):
-                remaining_dice = [die for die in dice_rolls if die not in dice_combination]
-                
-                # Get all possible moves for the current dice combination
-                possible_moves = []
-                for dice in dice_combination:
-                    moves = self.get_all_possible_moves2(board, current_colour, dice)
-                    possible_moves.extend(moves)
-                
-                for move in possible_moves:
-                    new_board = board.create_copy()
-                    piece = new_board.get_piece_at(move['piece_at'])
-                    new_board.move_piece(piece, move['die_roll'])
-                    
-                    # If no more dice, consider all possible opponent dice rolls
-                    if not remaining_dice:
-                        best_value = float('-inf')
-                        # Generate all possible dice roll combinations for the opponent
-                        for opponent_dice_rolls in self.generate_all_dice_combinations():
-                            value = self.minmax(new_board, colour.other(), opponent_dice_rolls, depth - 1, True, alpha, beta, start_time, time_limit, tree_log)
-                            best_value = max(best_value, value['value'])
-                        
-                        # Use the best (maximum) value for the minimizing player
-                        current_value = best_value
-                    else:
-                        # Continue with remaining dice
-                        value = self.minmax(new_board, colour, remaining_dice, depth, True, alpha, beta, start_time, time_limit, tree_log)
-                        current_value = value['value']
-                    
-                    # Update best moves
-                    if current_value < min_value:
-                        min_value = current_value
-                        best_moves = [move]
-                    elif current_value == min_value:
-                        best_moves.append(move)
-                    
-                    # Alpha-beta pruning
-                    beta = min(beta, current_value)
-                    if beta <= alpha:
-                        break
-            
-            return {'best_moves': best_moves, 'value': min_value}
+            best_val = float('-inf')
+            for new_board in posible_states.keys():
+                val = self.minmax(new_board, colour, depth-1, False, alpha, beta, start_time, time_limit)
+                if dice_rolls[0] != dice_rolls[1]:
+                    prop = 1/18
+                else:
+                    prop = 1/36
 
-    def generate_all_dice_combinations(self):
-        dice_combinations = []
-        # Generate unique dice combinations
-        for first in range(1, 7):
-            for second in range(first+1, 7):
-                dice_combinations.append([first, second])
-        
-        # Generate doubles
-        for die in range(1, 7):
-            dice_combinations.append([die, die, die, die])
-        return dice_combinations
-
-    def generate_dice_combinations(self, dice_rolls):
-        """Generate all possible ways to use the given dice rolls."""
-        if len(dice_rolls) == 1:
-            return [[dice] for dice in dice_rolls]
-        
-        if len(dice_rolls) == 2:
-            return [
-                [dice_rolls[0], dice_rolls[1]],
-                [dice_rolls[1], dice_rolls[0]]
-            ]
-        
-        return [dice_rolls] 
-    def minmax2(self, board, colour, dice_rolls, depth, maximizing_player, alpha, beta, start_time, time_limit, tree_log=None):
-        if time.time() - start_time > time_limit:
-            return {'best_moves': [], 'value': self.evaluate_board(board, colour)}
-        if depth == 0:
-            return {'best_moves': [], 'value': self.evaluate_board(board, colour)}
-        if tree_log:
-            tree_log.write(f"{'|   ' * depth}Depth {depth}: {'Max' if maximizing_player else 'Min'} Player\n")
-        
-        if maximizing_player:
-            max_value = float('-inf')
-            best_moves = []
-            for dice in dice_rolls:
-                remaining_dice_rolls = dice_rolls[:]
-                remaining_dice_rolls.remove(dice)
-                for move in self.get_all_possible_moves2(board, colour, dice):
-                    new_board = board.create_copy()
-                    piece = new_board.get_piece_at(move['piece_at'])
-                    new_board.move_piece(piece, move['die_roll'])
-                    if(len(remaining_dice_rolls) != 0):
-                        value = self.minmax(new_board, colour, remaining_dice_rolls, depth, False, alpha, beta, start_time, time_limit, tree_log)
-                    else:
-                        for diceA in range(1,7):
-                            for diceB in range(diceA, 7):
-                                if (diceA!=diceB):
-                                    new_dice_rolls = [diceA, diceB]
-                                else:
-                                    new_dice_rolls = [diceA, diceA, diceA, diceA]
-                                value = self.minmax(new_board, colour.other(), new_dice_rolls, depth - 1, False, alpha, beta, start_time, time_limit, tree_log)
-                    if value['value'] > max_value:
-                        max_value = value['value']
-                        best_moves = [move]
-                    elif value['value'] == max_value:
-                        best_moves.append(move)
-                    alpha = max(alpha, value['value'])
-                    if beta <= alpha:
-                        break
-            return {'best_moves': best_moves, 'value': max_value}
-        else:
-            min_value = float('inf')
-            best_moves = []
-            for dice in dice_rolls:
-                remaining_dice_rolls = dice_rolls[:]
-                remaining_dice_rolls.remove(dice)
-                for move in self.get_all_possible_moves2(board, colour.other(), dice):
-                    new_board = board.create_copy()
-                    piece = new_board.get_piece_at(move['piece_at'])
-                    new_board.move_piece(piece, move['die_roll'])
-                    if(len(remaining_dice_rolls) != 0):
-                        value = self.minmax(new_board, colour, remaining_dice_rolls, depth, True, alpha, beta, start_time, time_limit, tree_log)
-                    else:
-                        for diceA in range(1,7):
-                            for diceB in range(diceA, 7):
-                                if (diceA!=diceB):
-                                    new_dice_rolls = [diceA, diceB]
-                                else:
-                                    new_dice_rolls = [diceA, diceA, diceA, diceA]
-                                value = self.minmax(new_board, colour.other(), new_dice_rolls, depth - 1, True, alpha, beta, start_time, time_limit, tree_log)
-                    if value['value'] < min_value:
-                        min_value = value['value']
-                        best_moves = [move]
-                    elif value['value'] == min_value:
-                        best_moves.append(move)
-                    beta = min(beta, value['value'])
-                    if beta <= alpha:
-                        break
-            return {'best_moves': best_moves, 'value': min_value}
-            
-    def backgummon_minimax(self, board, colour, dice_rolls, depth, maximizing_player, alpha, beta, start_time, time_limit, tree_log=None):
-        if time.time() - start_time > time_limit:
-            return {'best_moves': [], 'value': self.evaluate_board(board, colour)}
-        if depth == 0:
-            return {'best_moves': [], 'value': self.evaluate_board(board, colour)}
-        if tree_log:
-            tree_log.write(f"{'|   ' * depth}Depth {depth}: {'Max' if maximizing_player else 'Min'} Player\n")
-        
-        if maximizing_player:
-            
-            max_value = float('-inf')
-            best_moves = []
-            all_possible_moves = self.get_all_possible_moves(board, colour, dice_rolls)
-            for move in all_possible_moves:
-                new_board = board.create_copy()
-                piece= new_board.get_piece_at(move['piece_at'])
-                new_board.move_piece(piece, move['die_roll'])
-                value = self.backgummon_minimax(new_board, colour, dice_rolls, depth - 1, False, alpha, beta, start_time, time_limit, tree_log)['value']
-                if value > max_value:
-                    max_value = value
-                    best_moves = [move]
-                elif value == max_value:
-                    best_moves.append(move)
-                alpha = max(alpha, value)
+                best_val = max(best_val, val)
+                alpha = max(alpha, val)
                 if beta <= alpha:
                     break
-            return {'best_moves': best_moves, 'value': max_value}
         else:
-            min_value = float('inf')
-            best_moves = []
-            for diceA in range(1,6):
-                for diceB in range(diceA, 6):
-                    if (diceA!=diceB):
-                        dice_rolls = [diceA, diceB]
-                    else:
-                        dice_rolls = [diceA, diceA, diceA, diceA]
-                    for move in self.get_all_possible_moves(board, colour.other(), dice_rolls):
-                        new_board = board.create_copy()
-                        piece = new_board.get_piece_at(move['piece_at'])
-                        new_board.move_piece(piece, move['die_roll'])
-                        #log(f"Moving piece at {piece.location} to {piece.location + move['die_roll']}")
-                        value = self.backgummon_minimax(new_board, colour, dice_rolls, depth - 1, True, alpha, beta, start_time, time_limit, tree_log)['value']
-                        if value < min_value:
-                            min_value = value
-                            best_moves = [move]
-                        elif value == min_value:
-                            best_moves.append(move)
-                        beta = min(beta, value)
-                        if beta <= alpha:
-                            break
-            return {'best_moves': best_moves, 'value': min_value}
-        
-    def get_all_possible_moves2(self, board, colour, dice):
-        all_possible_moves = []
-        pieces_to_try = [x.location for x in board.get_pieces(colour)]
-        pieces_to_try = list(set(pieces_to_try))
-        for piece_location in pieces_to_try:
-            piece = board.get_piece_at(piece_location)
-            if board.is_move_possible(piece, dice):
-                all_possible_moves.append({'piece_at': piece_location, 'die_roll': dice})
-        print(all_possible_moves)
-        return all_possible_moves
-
-    def get_all_possible_moves(self, board, colour, dice_rolls):
-        all_possible_moves = []
-        pieces_to_try = [x.location for x in board.get_pieces(colour)]
-        pieces_to_try = list(set(pieces_to_try))
-        for piece_location in pieces_to_try:
-            piece = board.get_piece_at(piece_location)
-            for dice in dice_rolls:
-                if board.is_move_possible(piece, dice):
-                    all_possible_moves.append({'piece_at': piece_location, 'die_roll': dice})
+            best_val = float('inf')
+            for new_board in posible_states.keys():
+                val = self.minmax(new_board, colour, depth-1, True, alpha, beta, start_time, time_limit)
+                if dice_rolls[0] != dice_rolls[1]:
+                    prop = 1/18
+                else:
+                    prop = 1/36
+                val = val * prop
+                best_val = min(best_val, val)
+                beta = min(beta, val)
+                if beta <= alpha:
+                    break
+        return best_val
+    
             
 
-       
-                    
+
+
         
+
+
+    
+    def create_tree(self, tree, borad):
+        for child in range(1,16):
+            node = tree.add_children(tree, child)
+            node.value = self
+
+    def get_all_possible_moves(self, board, colour, dice_roll, start_time, time_limit):
+        if time.time() - start_time > time_limit:
+            return {}
+        if(len(dice_roll) == 0):
+            return []
+        if len(dice_roll) == 0:
+            return {}
+        all_possible_moves = {}
+        pieces_to_try = [x.location for x in board.get_pieces(colour)]
+        pieces_to_try = list(set(pieces_to_try))
+        """
+        if (dice_roll[0] != dice_roll[1]):
+        #get 2 order, 1 the first dice is the first and 2 the second dice is the first
+            dice_order = [dice_roll, [dice_roll[1], dice_roll[0]]]
+        else:
+            dice_order = dice_roll
+        """
+        for dice in (set(permutations(dice_roll))):
+            dice_roll = dice[0]
+            remeining_dice = dice[1:]
+            for piece_curr in pieces_to_try:
+                piece = board.get_piece_at(piece_curr)
+                if board.is_move_possible(piece, dice_roll):
+                    board_copy = board.create_copy()
+                    new_piece = board_copy.get_piece_at(piece.location)
+                    board_copy.move_piece(new_piece, dice_roll)
+                    rest_dice_board = self.get_all_possible_moves(board_copy, colour, remeining_dice, start_time, time_limit)
+                    if len(rest_dice_board) == 0:
+                        all_possible_moves[board_copy] = [{'piece_at': piece.location, 'die_roll': dice_roll}]
+                    else:
+                        for new_board, moves in rest_dice_board.items():
+                            all_possible_moves[new_board] = [{'piece_at': piece.location, 'die_roll': dice_roll}] + moves
+        return all_possible_moves
+
+
+                        
+
+                    
+
     def evaluate_board(self, myboard, colour):
         board_stats = self.assess_board(colour, myboard)
 
@@ -348,7 +173,8 @@ class MinMax_shayOren(Strategy):
 
 
 
-            
+
+
 
 distance_odds_fraction_map = {
     1: Fraction(11, 36),
@@ -369,3 +195,55 @@ distance_odds_fraction_map = {
     20: Fraction(1, 36),
     24: Fraction(1, 36)
 }
+
+
+class TreeNode:
+    def __init__(self, value):
+        self.value = value
+        self.children = [None]*15
+
+    def add_child(self, child_node):
+        self.children.append(child_node)
+
+    def get_min(self):
+        min_value = float('inf')
+        for child in self.children:
+            child_min = child.get_value()
+            min_value = min(min_value, child_min)
+        return min_value
+        
+    
+    def get_max(self):
+        max_value = float('inf')
+        for child in self.children:
+            child_max = child.value
+            max_value = max(max_value, child_max)
+        return max_value
+    def get_value(self):
+        return self.value
+    def dice_to_index(self, diceA, diceB):
+        return (diceA-1)+(diceB-1)*6
+
+        
+
+class Tree:
+    def __init__(self, root_value):
+        self.root = TreeNode(root_value)
+        
+
+    def add_children(self, parent_node, children_values):
+        for value in children_values:
+            child_node = TreeNode(value)
+            parent_node.add_child(child_node)
+
+    def get_min(self):
+        if self.root:
+            return self.root.get_min_max()
+        else:
+            return None, None
+    def cut_tree_by_child(self, child_index):
+        self.root = self.root.children[child_index]
+
+        
+        
+
