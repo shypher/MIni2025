@@ -73,33 +73,36 @@ class CompareAllMoves(Strategy):
             valid_pieces.append(board.get_piece_at(piece_location))
         valid_pieces.sort(key=Piece.spaces_to_home, reverse=True)
 
-        for move in self.get_all_possible_moves(board, colour, dice_rolls):
-            board_copy = board.create_copy()
-            piece = board_copy.get_piece_at(move['piece_at'])
-            board_copy.move_piece(piece, move['die_roll'])
+        dice_rolls_left = dice_rolls.copy()
+        die_roll = dice_rolls_left.pop(0)
 
-            remaining_dice_rolls = dice_rolls.copy()
-            remaining_dice_rolls.remove(move['die_roll'])
-
-            if remaining_dice_rolls:
-                result = self.move_recursively(board_copy, colour, remaining_dice_rolls)
-                if len(result['best_moves']) == 0:
+        for piece in valid_pieces:
+            if board.is_move_possible(piece, die_roll):
+                board_copy = board.create_copy()
+                new_piece = board_copy.get_piece_at(piece.location)
+                board_copy.move_piece(new_piece, die_roll)
+                if len(dice_rolls_left) > 0:
+                    result = self.move_recursively(board_copy, colour, dice_rolls_left)
+                    if len(result['best_moves']) == 0:
+                        # we have done the best we can do
+                        board_value = self.evaluate_board(board_copy, colour)
+                        if board_value < best_board_value and len(best_pieces_to_move) < 2:
+                            best_board_value = board_value
+                            best_pieces_to_move = [{'die_roll': die_roll, 'piece_at': piece.location}]
+                    elif result['best_value'] < best_board_value:
+                        new_best_moves_length = len(result['best_moves']) + 1
+                        if new_best_moves_length >= len(best_pieces_to_move):
+                            best_board_value = result['best_value']
+                            move = {'die_roll': die_roll, 'piece_at': piece.location}
+                            best_pieces_to_move = [move] + result['best_moves']
+                else:
                     board_value = self.evaluate_board(board_copy, colour)
                     if board_value < best_board_value and len(best_pieces_to_move) < 2:
                         best_board_value = board_value
-                        best_pieces_to_move = [{'die_roll': move['die_roll'], 'piece_at': move['piece_at']}]
-                elif result['best_value'] < best_board_value:
-                    new_best_moves_length = len(result['best_moves']) + 1
-                    if new_best_moves_length >= len(best_pieces_to_move):
-                        best_board_value = result['best_value']
-                        best_pieces_to_move = [{'die_roll': move['die_roll'], 'piece_at': move['piece_at']}] + result['best_moves']
-            else:
-                board_value = self.evaluate_board(board_copy, colour)
-                if board_value < best_board_value and len(best_pieces_to_move) < 2:
-                    best_board_value = board_value
-                    best_pieces_to_move = [{'die_roll': move['die_roll'], 'piece_at': move['piece_at']}]
+                        best_pieces_to_move = [{'die_roll': die_roll, 'piece_at': piece.location}]
 
-        return {'best_value': best_board_value, 'best_moves': best_pieces_to_move}
+        return {'best_value': best_board_value,
+                'best_moves': best_pieces_to_move}
 
 
 class CompareAllMovesSimple(CompareAllMoves):
@@ -158,4 +161,3 @@ class CompareAllMovesWeightingDistanceAndSinglesWithEndGame2(CompareAllMoves):
                       3 * board_stats['pieces_on_board'] + float(board_stats['sum_distances_to_endzone']) / 6
 
         return board_value
-
