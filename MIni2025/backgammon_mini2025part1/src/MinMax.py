@@ -161,9 +161,9 @@ class MinMax_shayOren(Strategy):
                 elif power > 18:
                      power = power * 5
                 elif power > 12:
-                    power = power * 2
+                    power = power * 5
                 elif power > 6:
-                    power = power * 2
+                    power = power * 5
                 elif power > 0:
                     power = power 
                 if len(pieces) == 1:
@@ -207,7 +207,7 @@ class MinMax_shayOren(Strategy):
             if not endgame:
                 val = self.minmax(new_board, colour, depth=4, maximizing_player=True, alpha=float('-inf'), beta=float('inf'), start_time=start_time, time_limit=self.time_limit)
             else:
-                val = self.minmax(new_board, colour, depth=2, maximizing_player=True, alpha=float('-inf'), beta=float('inf'), start_time=start_time, time_limit=self.time_limit)
+                val = self.minmax(new_board, colour, depth=1, maximizing_player=True, alpha=float('-inf'), beta=float('inf'), start_time=start_time, time_limit=self.time_limit)
 
             if val > best_val:
                 best_val = val
