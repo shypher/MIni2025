@@ -14,7 +14,7 @@ class MinMax_shayOren(Strategy):
     def get_difficulty():
         return "shimy"
     def __init__(self):
-        tree = Tree(None)
+        minmax_deap =0
         endgame = False
         
     def assess_board0(self, colour, myboard):
@@ -256,6 +256,7 @@ class MinMax_shayOren(Strategy):
 
 
     def move(self, board, colour, dice_roll, make_move, opponents_activity):
+        self.minmax_deap=0
         log("minimax")
         start_time = time.time()
         if board.getTheTimeLim() != -1:
@@ -306,10 +307,13 @@ class MinMax_shayOren(Strategy):
         log(f"Best value: {best_val}")
         board_stat = self.assess_board(colour, board)
         log(f"board_stat: {board_stat}")      
+        log(f"minmax_deap: {self.minmax_deap}")
+        self.minmax_deap=0
         return
      
         
     def minmax(self, board, colour, depth, maximizing_player, alpha, beta, start_time, time_limit):
+        self.minmax_deap = max(self.minmax_deap, 4-depth)
         if self.time_limit != -1:  
             if time.time() - start_time > time_limit:
                 return self.evaluate_board(board, colour)
@@ -410,21 +414,21 @@ class MinMax_shayOren(Strategy):
         
         # Updated weights based on strategic importance
         weights = {
-            'number_occupied_spaces': 0 ,
+            'number_occupied_spaces': 3.0 ,
             'opponents_taken_pieces': 2.0,
             'taken_pieces': -5.0,
             'sum_distances': -1.0,
             'sum_distances_opponent': 0.8,
-            'number_of_singles': -170.0 ,
-            'sum_single_distance_away_from_home': -0.0,
-            'pieces_on_board': 0,
-            'sum_distances_to_endzone': 0.5,
+            'number_of_singles': -525.0 ,
+            'sum_single_distance_away_from_home': -3.0,
+            'pieces_on_board': -30.0,
+            'sum_distances_to_endzone': -0.5,
             'home_control': 300.0 ,
             'board_control': 30.0,
             'threat_level': 0.0,
-            'sum_distance_far_from_home': -2.0    
+            'sum_distance_far_from_home': -10.0    
             ,'building_of_two': 0.0,
-            'tower': -200.0
+            'tower': -100.0
         }
 
         # Compute weighted board value
@@ -440,7 +444,7 @@ class MinMax_shayOren(Strategy):
             'sum_distances': 1.5,
             'sum_distances_opponent': 1,
             'number_of_singles': -20.0 ,
-            'sum_single_distance_away_from_home': 0,
+            'sum_single_distance_away_from_home': -30.0,
             'pieces_on_board': 0,
             'sum_distances_to_endzone': 0,
             'home_control': 0,
