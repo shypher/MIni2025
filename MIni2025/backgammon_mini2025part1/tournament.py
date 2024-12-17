@@ -87,6 +87,7 @@ def run_tournament(player_names, player_strategies):
             next_round_players[series_winner] = players[series_winner]
             game_results.append(f"{player1} vs {player2}: {series_winner} won the series")
             log(f"{series_winner} won the series!")
+            log(f"{player1} {wins[player1]} - {wins[player2]} {player2}")
         tournament_branch.append(round_matchups)
         players = next_round_players
     final_winner = list(players.keys())[0]

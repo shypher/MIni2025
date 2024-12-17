@@ -15,8 +15,9 @@ class MinMax_shayOren(Strategy):
         return "shimy"
     def __init__(self):
         tree = Tree(None)
+        endgame = False
         
-    def assess_board1(self, colour, myboard):
+    def assess_board0(self, colour, myboard):
         pieces = myboard.get_pieces(colour)
         opponent_pieces = myboard.get_pieces(colour.other())
         pieces_on_board = len(pieces)
@@ -124,8 +125,7 @@ class MinMax_shayOren(Strategy):
         threat_level = sum(1 for piece in pieces for opponent_piece in opponent_pieces if abs(piece.location - opponent_piece.location) < 8)
         my_taken_pieces = len(myboard.get_taken_pieces(colour))
         sum_distances_opponent = sum(piece.spaces_to_home() for piece in opponent_pieces)
-        pieces_on_other_endzone = sum(1 for piece in pieces if piece.spaces_to_home() < 19)
-
+        pieces_on_other_endzone = sum(1 for piece in pieces if piece.spaces_to_home() < 19) 
         return {
             'number_occupied_spaces': number_occupied_spaces,
             'opponents_taken_pieces': opponents_taken_pieces,
@@ -142,7 +142,7 @@ class MinMax_shayOren(Strategy):
             'home_board_control': home_board_control,
             'connectivity': connectivity,
         }
-    def assess_board(self, colour, myboard):
+    def assess_board2(self, colour, myboard):
         pieces = myboard.get_pieces(colour)
         pieces_opponent = myboard.get_pieces(colour.other())
         taken_pieces = myboard.get_taken_pieces(colour)
@@ -156,18 +156,23 @@ class MinMax_shayOren(Strategy):
             pieces = myboard.pieces_at(location)
             if len(pieces) >= 1:
                 power =25- pieces[0].spaces_to_home()
+
                 if power >22:
-                     power = power * 5
+                     power = power 
                 elif power > 18:
-                     power = power * 5
+                     power = power 
                 elif power > 12:
-                    power = power * 5
+                    power = power 
                 elif power > 6:
-                    power = power * 5
+                    power = power * 0.5
                 elif power > 0:
                     power = power 
                 if len(pieces) == 1:
-                    power = power * 0.00001
+                    power = power * 0.0001
+                if len(pieces) > 3:
+                    power = power * 0.8
+                if len(pieces) > 5:
+                    power = power * 0.5
                 if pieces[0].colour == colour:
                     sum_power_our += power
                 else:
@@ -183,7 +188,69 @@ class MinMax_shayOren(Strategy):
         }
                 
 
-            
+    def assess_board(self, colour, myboard):
+        pieces = myboard.get_pieces(colour)
+        pieces_on_board = len(pieces)
+        sum_distances = 0
+        number_of_singles = 0
+        number_occupied_spaces = 0
+        home_control = 0
+        sum_single_distance_away_from_home = 0
+        sum_distances_to_endzone = 0
+        board_control =0
+        sum_distance_far_from_home=0
+        building_of_two = 0
+        tower = 0
+        taken_pieces = len(myboard.get_taken_pieces(colour))
+        for piece in pieces:
+            sum_distances = sum_distances + piece.spaces_to_home()
+            if piece.spaces_to_home() > 6:
+                sum_distances_to_endzone += piece.spaces_to_home() - 6
+            if piece.spaces_to_home()>12:
+                sum_distance_far_from_home += piece.spaces_to_home() -6
+                
+        for location in range(1, 25):
+            pieces = myboard.pieces_at(location)
+            if len(pieces) != 0 and pieces[0].colour == colour:
+                if len(pieces) == 1:
+                    number_of_singles = number_of_singles + 1
+                    sum_single_distance_away_from_home += 25 - pieces[0].spaces_to_home()
+                elif len(pieces) > 1:
+                    number_occupied_spaces = number_occupied_spaces + 1
+                if len(pieces) > 1:
+                    board_control+= 1
+                    if 1 <= pieces[0].spaces_to_home() <= 6:
+                        home_control += 1
+                if len(pieces) == 2:
+                    building_of_two += 1
+                elif len(pieces) > 3:
+                    tower += 1
+        opponents_taken_pieces = len(myboard.get_taken_pieces(colour.other()))
+        opponent_pieces = myboard.get_pieces(colour.other())
+        threat_level = sum(1 for piece in pieces for opponent_piece in opponent_pieces if abs(piece.location - opponent_piece.location) < 8)
+        
+        sum_distances_opponent = 0
+        for piece in opponent_pieces:
+            sum_distances_opponent = sum_distances_opponent + piece.spaces_to_home()
+    
+        return {
+            'number_occupied_spaces': number_occupied_spaces,
+            'opponents_taken_pieces': opponents_taken_pieces,
+            'taken_pieces': taken_pieces,
+            'sum_distances': sum_distances,
+            'sum_distances_opponent': sum_distances_opponent,
+            'number_of_singles': number_of_singles,
+            'sum_single_distance_away_from_home': sum_single_distance_away_from_home,
+            'pieces_on_board': pieces_on_board,
+            'sum_distances_to_endzone': sum_distances_to_endzone,
+            'home_control': home_control,
+            'board_control': board_control,
+            'threat_level': threat_level,
+            'sum_distance_far_from_home': sum_distance_far_from_home,
+            'building_of_two':building_of_two,
+            'tower': tower
+        }
+              
 
 
 
@@ -191,23 +258,41 @@ class MinMax_shayOren(Strategy):
     def move(self, board, colour, dice_roll, make_move, opponents_activity):
         log("minimax")
         start_time = time.time()
-
-        self.time_limit = board.getTheTimeLim() - 0.2
+        if board.getTheTimeLim() != -1:
+            self.time_limit = board.getTheTimeLim() - 0.2
+        else:
+            self.time_limit = -1
         possible_state =  self.get_all_possible_moves(board, colour, dice_roll , start_time, self.time_limit)
         best_val = float('-inf')
         best_moves = []
         #chack if all the pieces are in the endzone
-        endgame = False
-        if sum(1 for piece in board.get_pieces(colour) if piece.spaces_to_home() > 7) >=1:
-            endgame = True
+        self.endgame = False
+        if sum(1 for piece in board.get_pieces(colour) if piece.spaces_to_home() > 7) ==0:
+            self.endgame = True
+        #print(possible_state)
+            lest_pieces = board.get_pieces(colour)
+            lest_rows = list(set(lest_pieces))
+            log(f"Possible states: {(possible_state).items()}")
+            #sort by spaces to home
+            lest_rows.sort(key=lambda x: x.spaces_to_home(), reverse=True)
+            if len(lest_rows) <=len (dice_roll):
+                dice= sorted(dice_roll, reverse=True)
+                for piece in lest_pieces:
+                    if board.is_move_possible(piece, dice[0]):
+                        make_move(piece.location, dice[0])
+                        dice_roll.remove(dice[0])
+                        break
+                    if len(dice_roll) == 0:
+                        return
 
         for new_board, moves in possible_state.items():
-            if time.time() - start_time > self.time_limit:
-                break
-            if not endgame:
+            if self.time_limit != -1:   
+                if time.time() - start_time > self.time_limit:
+                    break
+            if not self.endgame:
                 val = self.minmax(new_board, colour, depth=4, maximizing_player=True, alpha=float('-inf'), beta=float('inf'), start_time=start_time, time_limit=self.time_limit)
             else:
-                val = self.minmax(new_board, colour, depth=1, maximizing_player=True, alpha=float('-inf'), beta=float('inf'), start_time=start_time, time_limit=self.time_limit)
+                val = self.minmax(new_board, colour, depth=2, maximizing_player=True, alpha=float('-inf'), beta=float('inf'), start_time=start_time, time_limit=self.time_limit)
 
             if val > best_val:
                 best_val = val
@@ -217,10 +302,17 @@ class MinMax_shayOren(Strategy):
                 if colour !=  0:
                     log(f"Moving piece at {move['piece_at']} to {move['piece_at'] + move['die_roll']}")
                 make_move(move['piece_at'], move['die_roll'])
+        
+        log(f"Best value: {best_val}")
+        board_stat = self.assess_board(colour, board)
+        log(f"board_stat: {board_stat}")      
         return
+     
+        
     def minmax(self, board, colour, depth, maximizing_player, alpha, beta, start_time, time_limit):
-        if time.time() - start_time > time_limit:
-            return float('-inf') if maximizing_player else float('inf') #meybe self.evaluate_board(board, colour)
+        if self.time_limit != -1:  
+            if time.time() - start_time > time_limit:
+                return self.evaluate_board(board, colour)
         if depth == 0:
             return self.evaluate_board(board, colour)
         dice_rolls = []
@@ -240,7 +332,7 @@ class MinMax_shayOren(Strategy):
                     prop = 1/18
                 else:
                     prop = 1/36
-                val = val * prop*(depth*depth/2)
+                val = val #* prop*(depth*depth/2)
                 best_val = max(best_val, val)
                 alpha = max(alpha, val)
                 if beta <= alpha:
@@ -253,7 +345,7 @@ class MinMax_shayOren(Strategy):
                     prop = 1/18
                 else:
                     prop = 1/36
-                val = val * prop*(depth*depth/2)
+                val = val * prop#*(depth*depth/2)
                 best_val = min(best_val, val)
                 beta = min(beta, val)
                 if beta <= alpha:
@@ -274,8 +366,9 @@ class MinMax_shayOren(Strategy):
             node.value = self
 
     def get_all_possible_moves(self, board, colour, dice_roll, start_time, time_limit):
-        if time.time() - start_time > time_limit:
-            return {}
+        if self.time_limit != -1:  
+            if time.time() - start_time > time_limit:
+                return {}
         if(len(dice_roll) == 0):
             return []
         if len(dice_roll) == 0:
@@ -312,25 +405,26 @@ class MinMax_shayOren(Strategy):
 
                     
 
-    def evaluate_board2(self, myboard, colour):
+    def evaluate_board(self, myboard, colour):
         board_stats = self.assess_board(colour, myboard)
         
         # Updated weights based on strategic importance
         weights = {
-            'number_occupied_spaces': 1.5,
-            'opponents_taken_pieces': 3.0,
+            'number_occupied_spaces': 0 ,
+            'opponents_taken_pieces': 2.0,
+            'taken_pieces': -5.0,
             'sum_distances': -1.0,
-            'sum_distances_opponent': 1.0,
-            'number_of_singles': -5.0,  # Penalize blots more heavily
-            'sum_single_distance_away_from_home': -0.8,
-            'pieces_on_board': 1.0,
-            'sum_distances_to_endzone': -1.5,  # Encourage advancement
-            'threat level': -2.0,
-            'my_taken_pieces': -3.0,
-            'pieces_on_other_endzone': -1.5,
-            'prime_value': 3.0,  # Encourage forming primes
-            'home_board_control': 2.0,  # Value home board control
-            'connectivity': 1.5,  # Encourage supporting pieces
+            'sum_distances_opponent': 0.8,
+            'number_of_singles': -170.0 ,
+            'sum_single_distance_away_from_home': -0.0,
+            'pieces_on_board': 0,
+            'sum_distances_to_endzone': 0.5,
+            'home_control': 300.0 ,
+            'board_control': 30.0,
+            'threat_level': 0.0,
+            'sum_distance_far_from_home': -2.0    
+            ,'building_of_two': 0.0,
+            'tower': -200.0
         }
 
         # Compute weighted board value
@@ -338,16 +432,19 @@ class MinMax_shayOren(Strategy):
         return board_value
 
 
-    def evaluate_board(self, myboard, colour):
+    def evaluate_board1(self, myboard, colour):
         board_stats = self.assess_board(colour, myboard)
         weights = {
-            'pieces_out': 250.0,
-            'pieces_out_opponent': 10.0,
-            'sum_power_our': 1.0,
-            'sum_power_opponent': -1.0,
-            'taken_pieces': 3.0,
-            'taken_pieces_opponent': -3.0,
-            'threat_level': 2.0,
+            'number_occupied_spaces':0 ,
+            'opponents_taken_pieces': 0,
+            'sum_distances': 1.5,
+            'sum_distances_opponent': 1,
+            'number_of_singles': -20.0 ,
+            'sum_single_distance_away_from_home': 0,
+            'pieces_on_board': 0,
+            'sum_distances_to_endzone': 0,
+            'home_control': 0,
+            'board_control': 0
         }
 
         board_value = sum(weights[key] * board_stats.get(key, 0) for key in weights)

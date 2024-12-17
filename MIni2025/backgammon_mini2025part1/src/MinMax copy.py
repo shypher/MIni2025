@@ -48,7 +48,10 @@ class MinMax_shayOren(Strategy):
     def move(self, board, colour, dice_roll, make_move, opponents_activity):
         log("minimax")
         start_time = time.time()
-        time_limit = board.getTheTimeLim() - 0.2
+        if board.getTheTimeLim() != -1:
+            time_limit = board.getTheTimeLim() - 0.2
+        else:
+            time_limit = -1
         with open("tree.txt", "a") as tree_log:
             best_move = self.minmax(board, colour, dice_roll, depth=4, maximizing_player=True,\
                 alpha=float('-inf'), beta=float('inf'), start_time=start_time, time_limit=time_limit, tree_log=tree_log)
@@ -62,10 +65,11 @@ class MinMax_shayOren(Strategy):
         log(f"Best move: {best_move}")
 
     def minmax(self, board, colour, dice_rolls, depth, maximizing_player, alpha, beta, start_time, time_limit, tree_log=None):
-        if  time.time() - start_time > time_limit:
-            if tree_log:
-                    tree_log.write(f"{'|   ' * depth}Depth {depth}: {'Max' if maximizing_player else 'Min'} Player\n")
-            return {'best_moves': [], 'value': self.evaluate_board(board, colour)}
+        if time_limit != -1:
+            if  time.time() - start_time > time_limit:
+                if tree_log:
+                        tree_log.write(f"{'|   ' * depth}Depth {depth}: {'Max' if maximizing_player else 'Min'} Player\n")
+                return {'best_moves': [], 'value': self.evaluate_board(board, colour)}
         if depth == 0:
             if tree_log:
                 tree_log.write(f"{'|   ' * depth}Depth {depth}: {'Max' if maximizing_player else 'Min'} Player\n")
@@ -101,8 +105,9 @@ class MinMax_shayOren(Strategy):
         return {'best_moves': best_moves, 'value': value}
                                     
     def minmax7200(self, board, colour, dice_rolls, depth, maximizing_player, alpha, beta, start_time, time_limit, tree_log=None):
-        if time.time() - start_time > time_limit:
-            return {'best_moves': [], 'value': self.evaluate_board(board, colour)}
+        if time_limit != -1:
+            if time.time() - start_time > time_limit:
+                return {'best_moves': [], 'value': self.evaluate_board(board, colour)}
         
         if depth == 0:
             if tree_log:
@@ -226,8 +231,9 @@ class MinMax_shayOren(Strategy):
         return combinations
         
     def minmax2(self, board, colour, dice_rolls, depth, maximizing_player, alpha, beta, start_time, time_limit, tree_log=None):
-        if time.time() - start_time > time_limit:
-            return {'best_moves': [], 'value': self.evaluate_board(board, colour)}
+        if time_limit != -1:
+            if time.time() - start_time > time_limit:
+                return {'best_moves': [], 'value': self.evaluate_board(board, colour)}
         if depth == 0:
             return {'best_moves': [], 'value': self.evaluate_board(board, colour)}
         if tree_log:
