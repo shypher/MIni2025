@@ -16,17 +16,17 @@ class StrategyFactory:
     def get_all():
         strategies = [
             MinMax_shayOren,
-            MinMax_shayOren2,
+            MoveRandomPiece,
+            MoveFurthestBackStrategy,
+            CompareAllMovesSimple,
+            HumanStrategy,
+        ]
+        """MinMax_shayOren2,
             MinMax_shayOren3,
             MinMax_shayOren4,
             MinMax_shayOren5,
             MinMax_shayOren6,
             MinMax_shayOren7,
             MinMax_shayOren8,
-            MinMax_shayOren9,
-            MoveRandomPiece,
-            MoveFurthestBackStrategy,
-            CompareAllMovesSimple,
-            HumanStrategy,
-        ]
+            MinMax_shayOren9,"""
         return strategies
