@@ -1,248 +1,186 @@
+import json
+from random import randint
+import threading
+from src.board import Board
+from src.colour import Colour
+from src.strategies import Strategy
+from src.move_not_possible_exception import MoveNotPossibleException
 
-    def minmax1(self, board, colour, dice_rolls, depth, maximizing_player, alpha, beta, start_time, time_limit, tree_log=None):
-        if time.time() - start_time > time_limit:
-            return {'best_value': self.evaluate_board(board, colour), 'best_moves': []}
+def log(message, file_path="tournament_log.txt"):
+    with open(file_path, "a") as log_file:
+        log_file.write(message + "\n")
+    print(message)
+class ReadOnlyBoard:
+    board: Board
 
-        dice_rolls_left = dice_rolls.copy()
-        if not dice_rolls_left:
-            eval_value = self.evaluate_board(board, colour)
-            if tree_log:
-                tree_log.write(f"{'|   ' * depth}Leaf: Evaluation = {eval_value}\n")
-            return {'best_value': eval_value, 'best_moves': []}
+    def __init__(self, board):
+        self.board = board
 
-        die_roll = dice_rolls_left.pop(0)
-        valid_moves = self.get_valid_moves(board, colour, die_roll)
+    # Delegate all readonly method calls to the board
+    def __getattr__(self, name):
+        if hasattr(self.board, name) and callable(getattr(self.board, name)):
+            return getattr(self.board, name)
 
-        if tree_log:
-            tree_log.write(f"{'|   ' * depth}Depth {depth}: {'Max' if maximizing_player else 'Min'} Player, Die Roll = {die_roll}\n")
+        return super(ReadOnlyBoard, self).__getattr__(name)
 
-        if maximizing_player:
-            best_value = float('-inf')
-            best_moves = []
-            for move in valid_moves:
-                board_copy = board.create_copy()
-                piece = board_copy.get_piece_at(move['piece_at'])
-                board_copy.move_piece(piece, die_roll)
+    def add_many_pieces(self, number_of_pieces, colour, location):
+        self.__raise_exception__()
 
-                result = self.minmax(
-                    board=board_copy,
-                    colour=colour,
-                    dice_rolls=dice_rolls_left,
-                    depth=depth + 1,
-                    maximizing_player=False,
-                    alpha=alpha,
-                    beta=beta,
-                    start_time=start_time,
-                    time_limit=time_limit,
-                    tree_log=tree_log
+    def move_piece(self, piece, die_roll):
+        self.__raise_exception__()
+
+    def __raise_exception__(self):
+        raise Exception("Do not try and change the board directly, use the make_move parameter instead")
+
+
+class Game:
+    def __init__(self, white_strategy: Strategy, black_strategy: Strategy, first_player: Colour, time_limit=5):
+        self.board = Board.create_starting_board()
+        self.first_player = first_player
+        self.strategies = {
+            Colour.WHITE: white_strategy,
+            Colour.BLACK: black_strategy
+        }
+        self.time_limit = time_limit
+        self.board.time_limit = time_limit
+
+    def run_game(self, verbose=True):
+        if verbose:
+            log('%s goes first' % self.first_player)
+            self.board.print_board()
+        i = self.first_player.value
+        moves = []
+        full_dice_roll = []
+        while True:
+            if verbose:
+                self.board.print_board()
+            previous_dice_roll = full_dice_roll.copy()
+            dice_roll = [randint(1, 6), randint(1, 6)]
+            if dice_roll[0] == dice_roll[1]:
+                dice_roll = [dice_roll[0]] * 4
+            full_dice_roll = dice_roll.copy()
+            colour = Colour(i % 2)
+            if verbose:
+                log("%s rolled %s" % (colour, dice_roll))
+
+            def handle_move(location, die_roll):
+                rolls_to_move = self.get_rolls_to_move(location, die_roll, dice_roll)
+                if rolls_to_move is None:
+                    raise MoveNotPossibleException("You cannot move that piece %d" % die_roll)
+                for roll in rolls_to_move:
+                    piece = self.board.get_piece_at(location)
+                    original_location = location
+                    location = self.board.move_piece(piece, roll)
+                    dice_roll.remove(roll)
+                    moves.append({'start_location': original_location, 'die_roll': roll, 'end_location': location})
+                    previous_dice_roll.append(roll)
+                return rolls_to_move
+
+            board_snapshot = self.board.to_json()
+            dice_roll_snapshot = dice_roll.copy()
+
+            opponents_moves = moves.copy()
+            moves.clear()
+
+            move_made = threading.Event() 
+            # Pass the stop event to the strategy
+            stop_input_event = threading.Event()
+            self.strategies[colour].stop_input_event = stop_input_event
+
+            def make_move():
+                self.strategies[colour].move(
+                    ReadOnlyBoard(self.board),
+                    colour,
+                    dice_roll.copy(),
+                    lambda location, die_roll: handle_move(location, die_roll),
+                    {'dice_roll': previous_dice_roll, 'opponents_move': opponents_moves}
                 )
+                move_made.set() 
+            def make_move_simulation(self, board, location, die_roll, dice_roll, moves, previous_dice_roll):
+                rolls_to_move = self.get_rolls_to_move_simulation(board, location, die_roll, dice_roll)
+                if rolls_to_move is None:
+                    # For simulation purposes, you might handle this differently,
+                    # perhaps returning without making a move if no move is possible.
+                    # For now, we'll raise an exception to indicate an invalid move.
+                    raise Exception(f"You cannot move that piece with die roll {die_roll}")
+                for roll in rolls_to_move:
+                    piece = board.get_piece_at(location)
+                    original_location = location
+                    location = board.move_piece(piece, roll)
+                    dice_roll.remove(roll)
+                    moves.append({'start_location': original_location, 'die_roll': roll, 'end_location': location})
+                    previous_dice_roll.append(roll)
+                return rolls_to_move
+            def get_rolls_to_move_simulation(self, board, location, requested_move, available_rolls):
+                # Check if the die_roll is available in the dice_roll list
+                if requested_move not in available_rolls:
+                    return None
 
-                if result['best_value'] > best_value:
-                    best_value = result['best_value']
-                    best_moves = [move] + result['best_moves']
+                # Get the piece at the specified location
+                piece = board.get_piece_at(location)
+                if piece is None:
+                    return None
 
-                alpha = max(alpha, best_value)
-                if beta <= alpha:
-                    break
-            return {'best_value': best_value, 'best_moves': best_moves}
-        else:
-            best_value = float('inf')
-            best_moves = []
-            for move in valid_moves:
-                board_copy = board.create_copy()
-                piece = board_copy.get_piece_at(move['piece_at'])
-                board_copy.move_piece(piece, die_roll)
+                # Check if the move is possible
+                if not board.is_move_possible(piece, requested_move):
+                    return None
 
-                result = self.minmax(
-                    board=board_copy,
-                    colour=colour,
-                    dice_rolls=dice_rolls_left,
-                    depth=depth + 1,
-                    maximizing_player=True,
-                    alpha=alpha,
-                    beta=beta,
-                    start_time=start_time,
-                    time_limit=time_limit,
-                    tree_log=tree_log
-                )
+                # Return the die_roll as a possible roll
+                return [requested_move]
 
-                if result['best_value'] < best_value:
-                    best_value = result['best_value']
-                    best_moves = [move] + result['best_moves']
+            move_thread = threading.Thread(target=make_move) 
+            move_thread.start()
+            move_thread.join(self.time_limit if self.time_limit > 0 else None)  
 
-                beta = min(beta, best_value)
-                if beta <= alpha:
-                    break
-            return {'best_value': best_value, 'best_moves': best_moves}
-
-    def minmax(self, board, colour, dice_rolls, depth, maximizing_player, alpha, beta, start_time, time_limit, tree_log=None):
-        if time.time() - start_time > time_limit:
-            return {'best_value': self.evaluate_board(board, colour), 'best_moves': []}
-        dice_rolls_left = dice_rolls.copy()
-        if not dice_rolls_left:
-            eval_value = self.evaluate_board(board, colour)
-            if tree_log:
-                tree_log.write(f"{'|   ' * depth}Leaf: Evaluation = {eval_value}\n")
-            return {'best_value': self.evaluate_board(board, colour), 'best_moves': []}
-        die_roll = dice_rolls_left.pop(0)
-        valid_moves = self.get_valid_moves(board, colour, die_roll)
-        if tree_log:
-            tree_log.write(f"{'|   ' * depth}Depth {depth}: {'Max' if maximizing_player else 'Min'} Player, Die Roll = {die_roll}\n")
-        if maximizing_player:
-            best_value = float('-inf')
-            best_moves = []
-            for move in valid_moves:
-                board_copy = board.create_copy()
-                Piece = board_copy.get_piece_at(move['piece_at'])
-                board_copy.move_piece(Piece, move['die_roll'])
-                for move in valid_moves:
-                    board_copy = board.create_copy()
-                    piece = board_copy.get_piece_at(move['piece_at'])
-                    board_copy.move_piece(piece, die_roll)
-                    result = self.minmax(board_copy, colour, dice_rolls_left, depth + 1, False, alpha, beta, start_time, time_limit,tree_log=tree_log)
-                    if result is not None:
-                        if result['best_value'] > best_value:
-                            best_value = result['best_value']
-                            best_moves = [move] + result['best_moves']
-                        alpha = max(alpha, best_value)
-                        if beta <= alpha:
-                            break
-            return {'best_value': best_value, 'best_moves': best_moves}
-        else:
-            best_value = float('inf')
-            best_moves = []
-            for move in valid_moves:
-                board_copy = board.create_copy()
-                piece = board_copy.get_piece_at(move['piece_at'])
-                board_copy.move_piece(piece, die_roll)
-                result = self.minmax(board_copy, colour, dice_rolls_left, depth + 1, True, alpha, beta, start_time, time_limit,tree_log=tree_log)
-                if result is not None:
-                    if result['best_value'] < best_value:
-                        best_value = result['best_value']
-                        best_moves = [move] + result['best_moves']
-                    beta = min(beta, best_value)
-                    if beta <= alpha:
-                        break
-            return {'best_value': best_value, 'best_moves': best_moves}
-    def get_valid_moves(self, board, colour, die_roll):
-        valid_moves = []
-        pieces_to_try = [x.location for x in board.get_pieces(colour)]
-        pieces_to_try = list(set(pieces_to_try))
-
-        for piece_location in pieces_to_try:
-            piece = board.get_piece_at(piece_location)
-            if board.is_move_possible(piece, die_roll):
-                valid_moves.append({'piece_at': piece_location, 'die_roll': die_roll})
-        return valid_moves            
-            
-    def minimax(self, board, colour, dice_rolls, depth, maximizing, start_time, time_limit):
-        if time.time() - start_time > time_limit:
-            return {'best_value': self.evaluate_board(board, colour), 'best_moves': []}
-
-        # Base case: Depth or game end
-        if depth == 0 or board.has_game_ended():
-            eval_value = self.evaluate_board(board, colour)
-            log(f"Evaluating board: value={eval_value}, depth={depth}")
-            return {'best_value': eval_value, 'best_moves': []}
-
-        best_value = float('-inf') if maximizing else float('inf')
-        best_moves = []
-
-        dice_rolls_left = dice_rolls.copy()
-        die_roll = dice_rolls_left.pop(0)
-
-        pieces_to_try = [x.location for x in board.get_pieces(colour)]
-        pieces_to_try = list(set(pieces_to_try))
-
-        valid_pieces = []
-        for piece_location in pieces_to_try:
-            piece = board.get_piece_at(piece_location)
-            if piece and board.is_move_possible(piece, die_roll):
-                valid_pieces.append(piece)
-
-        if not valid_pieces:
-            log(f"No valid pieces found for die roll {die_roll}")
-            return {'best_value': best_value, 'best_moves': best_moves}
-
-        for piece in valid_pieces:
-            # Debugging valid moves
-            log(f"Trying piece at {piece.location} with die roll {die_roll}")
-
-            board_copy = board.create_copy()
-            new_piece = board_copy.get_piece_at(piece.location)
-            board_copy.move_piece(new_piece, die_roll)
-
-            result = self.minimax(board_copy, colour, dice_rolls_left, depth - 1, not maximizing, start_time, time_limit)
-            if result['best_value'] is None:
+            if self.time_limit > 0 and not move_made.is_set(): 
+                stop_input_event.set()  # Stop input in strategies.py
+                if verbose:
+                    log('%s did not make a move in time. Skipping turn.' % colour)
+                # Skip the turn and continue to the next player
+                i += 1
+                stop_input_event.clear()  # Clear the stop input event
                 continue
 
-            if maximizing and result['best_value'] > best_value:
-                best_value = result['best_value']
-                best_moves = [{'die_roll': die_roll, 'piece_at': piece.location}] + result['best_moves']
-            elif not maximizing and result['best_value'] < best_value:
-                best_value = result['best_value']
-                best_moves = [{'die_roll': die_roll, 'piece_at': piece.location}] + result['best_moves']
+            # **Insert the game ending check here**
+            if self.board.has_game_ended():  # Check if the game has ended
+                if verbose:
+                    log(f"{self.board.who_won()} has won the game!")
+                stop_input_event.set()  # Stop input in strategies.py as the game is over
+                return  # Exit the loop and end the game
 
-        log(f"Returning from minimax: best_value={best_value}, best_moves={best_moves}")
-        return {'best_value': best_value, 'best_moves': best_moves}
+            i += 1 #switching between players turns
 
-    def move2(self, board, colour, dice_roll, make_move, opponents_activity):
+    def get_rolls_to_move(self, location, requested_move, available_rolls):
+        # This first check ensures we return doing as little work as possible when the requested
+        # move is exactly one of the die rolls (to ensure automated experiments don't run slower)
+        if available_rolls.__contains__(requested_move):
+            if self.board.is_move_possible(self.board.get_piece_at(location), requested_move):
+                return [requested_move]
+            return None
+        if len(available_rolls) == 1:
+            return None
+        
+        board = self.board.create_copy()
+        rolls_to_move = []
+        current_location = location
+        if not board.is_move_possible(board.get_piece_at(current_location), available_rolls[0]):
+            # If the first die roll isn't possible, reverse the dice before starting. This ensures
+            # we cover all possible orderings (becasue doubles will always all be the same number)
+            available_rolls = available_rolls.copy()
+            available_rolls.reverse()
 
-        result = self.move_recursively(board, colour, dice_roll)
-        not_a_double = len(dice_roll) == 2
-        if not_a_double:
-            new_dice_roll = dice_roll.copy()
-            new_dice_roll.reverse()
-            result_swapped = self.move_recursively(board, colour,
-                                                   dice_rolls=new_dice_roll)
-            if result_swapped['best_value'] < result['best_value'] and \
-                    len(result_swapped['best_moves']) >= len(result['best_moves']):
-                result = result_swapped
+        for roll in available_rolls:
+            piece = board.get_piece_at(current_location)
+            if not board.is_move_possible(piece, roll):
+                break
+            current_location = board.move_piece(piece, roll)
+            rolls_to_move.append(roll)
+            if sum(rolls_to_move) == requested_move:
+                return rolls_to_move
+        return None
 
-        if len(result['best_moves']) != 0:
-            for move in result['best_moves']:
-                make_move(move['piece_at'], move['die_roll'])
-   
-    def move_recursively(self, board, colour, dice_rolls):
-        best_board_value = float('inf')
-        best_pieces_to_move = []
+    def who_started(self):
+        return self.first_player
 
-        pieces_to_try = [x.location for x in board.get_pieces(colour)]
-        pieces_to_try = list(set(pieces_to_try))
-
-        valid_pieces = []
-        for piece_location in pieces_to_try:
-            valid_pieces.append(board.get_piece_at(piece_location))
-        valid_pieces.sort(key=Piece.spaces_to_home, reverse=True)
-
-        dice_rolls_left = dice_rolls.copy()
-        die_roll = dice_rolls_left.pop(0)
-
-        for piece in valid_pieces:
-            if board.is_move_possible(piece, die_roll):
-                board_copy = board.create_copy()
-                new_piece = board_copy.get_piece_at(piece.location)
-                board_copy.move_piece(new_piece, die_roll)
-                if len(dice_rolls_left) > 0:
-                    result = self.move_recursively(board_copy, colour, dice_rolls_left)
-                    if len(result['best_moves']) == 0:
-                        # we have done the best we can do
-                        board_value = self.evaluate_board(board_copy, colour)
-                        if board_value < best_board_value and len(best_pieces_to_move) < 2:
-                            best_board_value = board_value
-                            best_pieces_to_move = [{'die_roll': die_roll, 'piece_at': piece.location}]
-                    elif result['best_value'] < best_board_value:
-                        new_best_moves_length = len(result['best_moves']) + 1
-                        if new_best_moves_length >= len(best_pieces_to_move):
-                            best_board_value = result['best_value']
-                            move = {'die_roll': die_roll, 'piece_at': piece.location}
-                            best_pieces_to_move = [move] + result['best_moves']
-                else:
-                    board_value = self.evaluate_board(board_copy, colour)
-                    if board_value < best_board_value and len(best_pieces_to_move) < 2:
-                        best_board_value = board_value
-                        best_pieces_to_move = [{'die_roll': die_roll, 'piece_at': piece.location}]
-
-        return {'best_value': best_board_value,
-                'best_moves': best_pieces_to_move}
-        """
+    def who_won(self):
+        return self.board.who_won()

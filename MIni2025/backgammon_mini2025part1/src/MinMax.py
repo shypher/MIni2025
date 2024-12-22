@@ -479,13 +479,6 @@ class MinMax_shayOren(Strategy):
         all_possible_moves = {}
         pieces_to_try = [x.location for x in board.get_pieces(colour)]
         pieces_to_try = list(set(pieces_to_try))
-        """
-        if (dice_roll[0] != dice_roll[1]):
-        #get 2 order, 1 the first dice is the first and 2 the second dice is the first
-            dice_order = [dice_roll, [dice_roll[1], dice_roll[0]]]
-        else:
-            dice_order = dice_roll
-        """
         for dice in (set(permutations(dice_roll))):
             dice_roll = dice[0]
             remeining_dice = dice[1:]
@@ -554,7 +547,7 @@ class MinMax_shayOren(Strategy):
             'sum_distance_far_from_home': -10.0    
             ,'building_of_two': 0.0,
             'tower': -150.0,
-            'first_tower': -70.0
+            'first_tower': -170.0
         }
         board_value = sum(weights[key] * board_stats.get(key, 0) for key in weights)
         return board_value
