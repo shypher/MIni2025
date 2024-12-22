@@ -18,5 +18,8 @@
         "titleBar.inactiveBackground": "#0000ff99",
         "titleBar.inactiveForeground": "#e7e7e799"
     },
-    "peacock.color": "#0000ff"
+    "peacock.color": "#0000ff",
+    "cSpell.words": [
+        "MCTS"
+    ]
 }
