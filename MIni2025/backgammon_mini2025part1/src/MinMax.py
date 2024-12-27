@@ -435,7 +435,8 @@ class MinMax_shayOren(Strategy):
                     prop = 1/18
                 else:
                     prop = 1/36
-                val = val #* prop*(depth*depth/2)
+                val = val * prop
+                #*(depth*depth/2)
                 best_val = max(best_val, val)
                 alpha = max(alpha, val)
                 if beta <= alpha:

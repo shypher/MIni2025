@@ -15,7 +15,7 @@ class StrategyFactory:
     @staticmethod
     def get_all():
         strategies = [
-            MCTS_shayOren,
+            MinMax_shayOren,
             MoveRandomPiece,
             MoveFurthestBackStrategy,
             CompareAllMovesSimple,

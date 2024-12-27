@@ -14,6 +14,10 @@ def log(message, file_path="tournament_log.txt"):
     with open(file_path, "a") as log_file:
         log_file.write(message + "\n")
     print(message)
+def log_tree(message, file_path="tree.txt"):
+    with open(file_path, "a") as log_file:
+        log_file.write(message + "\n")
+    
 class MCTS_shayOren(Strategy):
     @staticmethod
     def get_difficulty():
@@ -25,8 +29,9 @@ class MCTS_shayOren(Strategy):
         log("Starting MCTS move calculation")
         start_time = time.time()
         time_limit = board.getTheTimeLim() - 0.75 if board.getTheTimeLim() != -1 else float('inf')
+        self.tree = MCTSNode(state=board, colour=colour, dice_roll=dice_roll)
 
-        root = MCTSNode(state=board, colour=colour, dice_roll=dice_roll)
+        root = self.tree
         iterations = 0
 
         while time.time() - start_time < time_limit:
@@ -35,7 +40,8 @@ class MCTS_shayOren(Strategy):
 
             # Selection
             while not node.untried_moves and node.children:
-                node = node.best_child(exploration_weight=1.0)
+                node = node.best_child(exploration_weight = 1.0 / (1 + iterations / 100)
+)
                 #log(f"Selecting child node: Visits={node.visits}, Total Reward={node.total_reward}")
 
             # Expansion
@@ -57,7 +63,7 @@ class MCTS_shayOren(Strategy):
                 node.update(reward)
                 #log(f"Backpropagating reward={reward} for node with move={node.move}")
                 node = node.parent
-            log(f"Iteration: {iterations}")
+            #log(f"Iteration: {iterations}")
         if root.best_child(exploration_weight=0) is not None:
             best_move = root.best_child(exploration_weight=0).move
         #log(f"Selected best move: {best_move}")
@@ -66,6 +72,8 @@ class MCTS_shayOren(Strategy):
                 if colour !=  0:
                     log(f"Moving piece at {move['piece_at']} to {move['piece_at'] + move['die_roll']}")
                 make_move(move['piece_at'], move['die_roll'])
+        self.tree.print_tree()
+        log_tree(f"_____________________________________________")
                 
     def simulate_game(self, board, colour):
         game_color = colour
@@ -318,3 +326,7 @@ class MCTSNode:
         self.visits += 1
         self.total_reward += reward
         #log(f"Node updated: Visits={self.visits}, Total Reward={self.total_reward}")
+    def print_tree(self, depth=0):
+        log_tree(f"  " * depth + str(self.move)+ f"Total Reward={self.total_reward}")
+        for child in self.children:
+            child.print_tree(depth + 1)
