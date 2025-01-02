@@ -29,7 +29,7 @@ class MCTS_shayOren(Strategy):
         log("Starting MCTS move calculation")
         start_time = time.time()
         time_limit = board.getTheTimeLim() - 0.75 if board.getTheTimeLim() != -1 else float('inf')
-        self.tree = MCTSNode(state=board, colour=colour, dice_roll=dice_roll)
+        self.tree = MCTSNode(state=board, colour=colour, dice_roll=dice_roll, dice_roll_needed=False)
 
         root = self.tree
         iterations = 0
@@ -40,8 +40,7 @@ class MCTS_shayOren(Strategy):
 
             # Selection
             while not node.untried_moves and node.children:
-                node = node.best_child(exploration_weight = 1.0 / (1 + iterations / 100)
-)
+                node = node.best_child(exploration_weight = 1.0 / (1 + iterations / 100))
                 #log(f"Selecting child node: Visits={node.visits}, Total Reward={node.total_reward}")
 
             # Expansion
@@ -51,7 +50,7 @@ class MCTS_shayOren(Strategy):
                 moves = node.untried_moves[board]
                 node.untried_moves.pop(board)
                 #log(f"Expanding node with move: {move}")
-                child_node = node.add_child(moves, node.state)
+                child_node = node.add_child(moves, node.state, dice_roll_needed=True)
                 node = child_node
 
             # Simulation
@@ -261,7 +260,7 @@ class MCTS_shayOren(Strategy):
         }
 
 class MCTSNode:
-    def __init__(self, state, colour, dice_roll, parent=None, move=None):
+    def __init__(self, state, colour, dice_roll, parent=None, move=None, dice_roll_needed=None):
         self.state = state
         self.colour = colour
         self.dice_roll = dice_roll
@@ -271,6 +270,10 @@ class MCTSNode:
         self.visits = 0
         self.total_reward = 0
         self.untried_moves = self.get_all_possible_moves(state, colour, dice_roll)
+        self.dice_roll_needed = dice_roll_needed  
+
+    def is_fully_expanded(self):
+        return len(self.untried_moves) == 0
 
 
     def get_all_possible_moves(self, board, colour, dice_roll):
@@ -304,28 +307,37 @@ class MCTSNode:
         return len(self.untried_moves) == 0
 
     def best_child(self, exploration_weight=1.0):
+        """if self.dice_roll_needed:  # Simulate dice roll if required
+            dice_roll = [randint(1, 6), randint(1, 6)]
+            if dice_roll[0] == dice_roll[1]:
+                dice_roll = [dice_roll[0]] * 4
+            # Return a random child to simulate dice roll outcome
+        """   
+
+        # Use UCB for nodes without dice roll
         try:
+            # Default to player's turn for root node (no parent)
+            exploration_sign = 1 if self.parent is None or self.colour == self.parent.colour else -1
             best = max(
                 self.children,
-                key=lambda child: child.total_reward / (child.visits + 1e-6) +
-                                  exploration_weight * math.sqrt(math.log(self.visits + 1) / (child.visits + 1e-6))
+                key=lambda child: (child.total_reward / (child.visits + 1e-6)) +
+                                (exploration_sign * exploration_weight * math.sqrt(math.log(self.visits + 1) / (child.visits + 1e-6)))
             )
         except ValueError:
             best = None
-        #log(f"Best child selected with move={best.move}, Visits={best.visits}, Total Reward={best.total_reward}")
         return best
-
-    def add_child(self, move, new_state):
-        #log(f"Adding child node for move={move}")
-        
-        child = MCTSNode(new_state, self.colour.other(), self.dice_roll, parent=self, move=move)
+    def add_child(self, move, new_state, dice_roll_needed):
+        child = MCTSNode(new_state, self.colour.other(), self.dice_roll, parent=self, move=move, dice_roll_needed=dice_roll_needed)
         self.children.append(child)
         return child
 
+
     def update(self, reward):
+        if self.parent and self.colour != self.parent.colour:
+            reward *= -1  # Flip reward for opponent nodes
         self.visits += 1
         self.total_reward += reward
-        #log(f"Node updated: Visits={self.visits}, Total Reward={self.total_reward}")
+
     def print_tree(self, depth=0):
         log_tree(f"  " * depth + str(self.move)+ f"Total Reward={self.total_reward}")
         for child in self.children:
