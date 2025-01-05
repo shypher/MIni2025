@@ -620,9 +620,10 @@ class MCTS_shayOren5(Strategy):
 
     def evaluate_board(self, board, colour):
         board_stats = self.assess_board(colour, board)
-        board_value = board_stats['sum_distances'] - float(board_stats['sum_distances_opponent'])/3 + \
-                      float(board_stats['sum_single_distance_away_from_home'])/6 - \
-                      board_stats['number_occupied_spaces'] - board_stats['opponents_taken_pieces']
+        board_value = board_stats['sum_distances'] - float(board_stats['sum_distances_opponent']) / 3 + \
+                      float(board_stats['sum_single_distance_away_from_home']) / 6 - \
+                      board_stats['number_occupied_spaces'] - board_stats['opponents_taken_pieces'] + \
+                      3 * board_stats['pieces_on_board'] - 30 * board_stats['number_of_singles']
 
         return board_value
     def assess_board(self, colour, myboard):
@@ -874,33 +875,27 @@ class MCTS_shayOren7(Strategy):
                     node = node.best_child(exploration_weight=1)
             return node            
 
-
-    def simulate_game2(self, board, starting_colour):
-        cur_colour = starting_colour
+    def simulate_game2(self, board, colour):
+        game_color = colour
         while not board.has_game_ended():
             dice_roll = [randint(1, 6), randint(1, 6)]
             if dice_roll[0] == dice_roll[1]:
                 dice_roll = [dice_roll[0]] * 4
-            result = self.move_recursively(board, cur_colour, dice_roll)
-            not_a_double = len(dice_roll) == 2
-            if not_a_double:
-                new_dice_roll = dice_roll.copy()
-                new_dice_roll.reverse()
-                result_swapped = self.move_recursively(board, cur_colour,
-                                                    dice_rolls=new_dice_roll)
-                if result_swapped['best_value'] < result['best_value'] and \
-                        len(result_swapped['best_moves']) >= len(result['best_moves']):
-                    result = result_swapped
-            if len(result['best_moves']) != 0:
-                for move in result['best_moves']:
-                    piece = board.get_piece_at(move['piece_at'])
-                    board.move_piece(piece, move['die_roll'])
-            cur_colour = cur_colour.other()
-        if board.who_won() == starting_colour:
+            for die_roll in dice_roll:
+                valid_pieces = board.get_pieces(game_color)
+                shuffle(valid_pieces)
+                for piece in valid_pieces:
+                    if board.is_move_possible(piece, die_roll):
+                        #print(f"Moving piece {piece.location} {die_roll}")
+                        #board.print_board()
+                        board.move_piece(piece, die_roll)
+                        break
+            game_color = game_color.other()
+                
+        if board.who_won() == colour:
             return 1
         else:
             return -1
-
     def move_recursively(self, board, colour, dice_rolls):
         best_board_value = float('inf')
         best_pieces_to_move = []
