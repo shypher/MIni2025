@@ -8,6 +8,7 @@ import math
 import random
 from random import randint, shuffle
 from src.compare_all_moves_strategy import CompareAllMovesSimple
+from multiprocessing import Pool
 
 All_dice_roll = [[1,1,1,1],[1,2],[1,3],[1,4],[1,5],[1,6],[2,2,2,2],[2,3],[2,4],[2,5],[2,6],[3,3,3,3],[3,4],[3,5],[3,6],[4,4,4,4],[4,5],[4,6],[5,5,5,5],[5,6],[6,6,6,6]]
 def log(message, file_path="tournament_log.txt"):
@@ -40,7 +41,7 @@ class MCTS_shayOren2(Strategy):
             delta = self.simulate_game2(v1.state, colour)
             self.backup(delta, v1)   
 
-
+        print(f"number of children: {len(root.children)}")
         best_child = root.best_child(exploration_weight=1.0)
         best_move = best_child.move
         #log(f"Selected best move: {best_move}")
@@ -52,12 +53,13 @@ class MCTS_shayOren2(Strategy):
         self.tree.print_tree()
         log_tree(f"_____________________________________________")
     def treePolicy(self, node, root_colour):
-        while not node.state.has_game_ended():
-            if not node.is_fully_expanded():
-                return node.expand()
-            else:
-                node = node.best_child(exploration_weight=1)
-        return node            
+        if node is not None:
+            while not node.state.has_game_ended():
+                if not node.is_fully_expanded():
+                    return node.expand()
+                else:
+                    node = node.best_child(exploration_weight=1)
+            return node            
 
 
     def simulate_game2(self, board, starting_colour):
@@ -145,6 +147,818 @@ class MCTS_shayOren2(Strategy):
         number_occupied_spaces = 0
         sum_single_distance_away_from_home = 0
         sum_distances_to_endzone = 0
+        
+        for piece in pieces:
+            sum_distances = sum_distances + piece.spaces_to_home()
+            if piece.spaces_to_home() > 6:
+                sum_distances_to_endzone += piece.spaces_to_home() - 6
+        for location in range(1, 25):
+            pieces = myboard.pieces_at(location)
+            if len(pieces) != 0 and pieces[0].colour == colour:
+                if len(pieces) == 1:
+                    number_of_singles = number_of_singles + 1
+                    sum_single_distance_away_from_home += 25 - pieces[0].spaces_to_home()
+                elif len(pieces) > 1:
+                    number_occupied_spaces = number_occupied_spaces + 1
+        opponents_taken_pieces = len(myboard.get_taken_pieces(colour.other()))
+        opponent_pieces = myboard.get_pieces(colour.other())
+        sum_distances_opponent = 0
+        for piece in opponent_pieces:
+            sum_distances_opponent = sum_distances_opponent + piece.spaces_to_home()
+        return {
+            'number_occupied_spaces': number_occupied_spaces,
+            'opponents_taken_pieces': opponents_taken_pieces,
+            'sum_distances': sum_distances,
+            'sum_distances_opponent': sum_distances_opponent,
+            'number_of_singles': number_of_singles,
+            'sum_single_distance_away_from_home': sum_single_distance_away_from_home,
+            'pieces_on_board': pieces_on_board,
+            'sum_distances_to_endzone': sum_distances_to_endzone,
+        }
+    def backup(self, reward,v):
+        while v.parent is not None:
+            v.visits += 1
+            v.total_reward += reward
+            v = v.parent
+        return
+
+class MCTS_shayOren3(Strategy):
+    @staticmethod
+    def get_difficulty():
+        return "shimeh"
+    def __init__(self):
+        self.tree = None
+
+    def move(self, board, colour, dice_roll, make_move, opponents_activity):
+        log("Starting MCTS move calculation")
+        
+        start_time = time.time()
+        time_limit = board.getTheTimeLim() - 0.75 if board.getTheTimeLim() != -1 else float('inf')
+        self.tree = MCTSNode(state=board, colour=colour, dice_roll=dice_roll)
+
+        root = self.tree
+
+        while time.time() - start_time < time_limit:
+            # Selection
+            v1 = self.treePolicy(root, colour)
+            delta = self.simulate_game2(v1.state, colour)
+            self.backup(delta, v1)   
+
+        print(f"number of children: {len(root.children)}")
+        best_child = root.best_child(exploration_weight=1.0)
+        best_move = best_child.move
+        #log(f"Selected best move: {best_move}")
+        log(f"Selected best move: {best_move}")
+        for move in best_move:
+            if colour !=  0:
+                log(f"Moving piece at {move['piece_at']} to {move['piece_at'] + move['die_roll']}")
+            make_move(move['piece_at'], move['die_roll'])
+        self.tree.print_tree()
+        log_tree(f"_____________________________________________")
+    def treePolicy(self, node, root_colour):
+        if node is not None:
+            while not node.state.has_game_ended():
+                if not node.is_fully_expanded():
+                    return node.expand()
+                else:
+                    node = node.best_child(exploration_weight=1)
+            return node            
+
+
+    def simulate_game2(self, board, starting_colour):
+        cur_colour = starting_colour
+        while not board.has_game_ended():
+            dice_roll = [randint(1, 6), randint(1, 6)]
+            if dice_roll[0] == dice_roll[1]:
+                dice_roll = [dice_roll[0]] * 4
+            result = self.move_recursively(board, cur_colour, dice_roll)
+            not_a_double = len(dice_roll) == 2
+            if not_a_double:
+                new_dice_roll = dice_roll.copy()
+                new_dice_roll.reverse()
+                result_swapped = self.move_recursively(board, cur_colour,
+                                                    dice_rolls=new_dice_roll)
+                if result_swapped['best_value'] < result['best_value'] and \
+                        len(result_swapped['best_moves']) >= len(result['best_moves']):
+                    result = result_swapped
+            if len(result['best_moves']) != 0:
+                for move in result['best_moves']:
+                    piece = board.get_piece_at(move['piece_at'])
+                    board.move_piece(piece, move['die_roll'])
+            cur_colour = cur_colour.other()
+        if board.who_won() == starting_colour:
+            return 1
+        else:
+            return -1
+
+    def move_recursively(self, board, colour, dice_rolls):
+        best_board_value = float('inf')
+        best_pieces_to_move = []
+
+        pieces_to_try = [x.location for x in board.get_pieces(colour)]
+        pieces_to_try = list(set(pieces_to_try))
+
+        valid_pieces = []
+        for piece_location in pieces_to_try:
+            valid_pieces.append(board.get_piece_at(piece_location))
+        valid_pieces.sort(key=Piece.spaces_to_home, reverse=True)
+
+        dice_rolls_left = dice_rolls.copy()
+        die_roll = dice_rolls_left.pop(0)
+
+        for piece in valid_pieces:
+            if board.is_move_possible(piece, die_roll):
+                board_copy = board.create_copy()
+                new_piece = board_copy.get_piece_at(piece.location)
+                board_copy.move_piece(new_piece, die_roll)
+                if len(dice_rolls_left) > 0:
+                    result = self.move_recursively(board_copy, colour, dice_rolls_left)
+                    if len(result['best_moves']) == 0:
+                        # we have done the best we can do
+                        board_value = self.evaluate_board(board_copy, colour)
+                        if board_value < best_board_value and len(best_pieces_to_move) < 2:
+                            best_board_value = board_value
+                            best_pieces_to_move = [{'die_roll': die_roll, 'piece_at': piece.location}]
+                    elif result['best_value'] < best_board_value:
+                        new_best_moves_length = len(result['best_moves']) + 1
+                        if new_best_moves_length >= len(best_pieces_to_move):
+                            best_board_value = result['best_value']
+                            move = {'die_roll': die_roll, 'piece_at': piece.location}
+                            best_pieces_to_move = [move] + result['best_moves']
+                else:
+                    board_value = self.evaluate_board(board_copy, colour)
+                    if board_value < best_board_value and len(best_pieces_to_move) < 2:
+                        best_board_value = board_value
+                        best_pieces_to_move = [{'die_roll': die_roll, 'piece_at': piece.location}]
+
+        return {'best_value': best_board_value,
+                'best_moves': best_pieces_to_move}
+
+    def evaluate_board(self, board, colour):
+        board_stats = self.assess_board(colour, board)
+        board_value = board_stats['sum_distances'] + 2 * board_stats['number_of_singles'] - \
+                      board_stats['number_occupied_spaces'] - board_stats['opponents_taken_pieces']
+
+        return board_value
+    def assess_board(self, colour, myboard):
+        pieces = myboard.get_pieces(colour)
+        pieces_on_board = len(pieces)
+        sum_distances = 0
+        number_of_singles = 0
+        number_occupied_spaces = 0
+        sum_single_distance_away_from_home = 0
+        sum_distances_to_endzone = 0
+        
+        for piece in pieces:
+            sum_distances = sum_distances + piece.spaces_to_home()
+            if piece.spaces_to_home() > 6:
+                sum_distances_to_endzone += piece.spaces_to_home() - 6
+        for location in range(1, 25):
+            pieces = myboard.pieces_at(location)
+            if len(pieces) != 0 and pieces[0].colour == colour:
+                if len(pieces) == 1:
+                    number_of_singles = number_of_singles + 1
+                    sum_single_distance_away_from_home += 25 - pieces[0].spaces_to_home()
+                elif len(pieces) > 1:
+                    number_occupied_spaces = number_occupied_spaces + 1
+        opponents_taken_pieces = len(myboard.get_taken_pieces(colour.other()))
+        opponent_pieces = myboard.get_pieces(colour.other())
+        sum_distances_opponent = 0
+        for piece in opponent_pieces:
+            sum_distances_opponent = sum_distances_opponent + piece.spaces_to_home()
+        return {
+            'number_occupied_spaces': number_occupied_spaces,
+            'opponents_taken_pieces': opponents_taken_pieces,
+            'sum_distances': sum_distances,
+            'sum_distances_opponent': sum_distances_opponent,
+            'number_of_singles': number_of_singles,
+            'sum_single_distance_away_from_home': sum_single_distance_away_from_home,
+            'pieces_on_board': pieces_on_board,
+            'sum_distances_to_endzone': sum_distances_to_endzone,
+        }
+    def backup(self, reward,v):
+        while v.parent is not None:
+            v.visits += 1
+            v.total_reward += reward
+            v = v.parent
+        return 
+
+class MCTS_shayOren4(Strategy):
+    @staticmethod
+    def get_difficulty():
+        return "shimeh"
+    def __init__(self):
+        self.tree = None
+
+    def move(self, board, colour, dice_roll, make_move, opponents_activity):
+        log("Starting MCTS move calculation")
+        
+        start_time = time.time()
+        time_limit = board.getTheTimeLim() - 0.75 if board.getTheTimeLim() != -1 else float('inf')
+        self.tree = MCTSNode(state=board, colour=colour, dice_roll=dice_roll)
+
+        root = self.tree
+
+        while time.time() - start_time < time_limit:
+            # Selection
+            v1 = self.treePolicy(root, colour)
+            delta = self.simulate_game2(v1.state, colour)
+            self.backup(delta, v1)   
+
+        print(f"number of children: {len(root.children)}")
+        best_child = root.best_child(exploration_weight=1.0)
+        best_move = best_child.move
+        #log(f"Selected best move: {best_move}")
+        log(f"Selected best move: {best_move}")
+        for move in best_move:
+            if colour !=  0:
+                log(f"Moving piece at {move['piece_at']} to {move['piece_at'] + move['die_roll']}")
+            make_move(move['piece_at'], move['die_roll'])
+        self.tree.print_tree()
+        log_tree(f"_____________________________________________")
+    def treePolicy(self, node, root_colour):
+        if node is not None:
+            while not node.state.has_game_ended():
+                if not node.is_fully_expanded():
+                    return node.expand()
+                else:
+                    node = node.best_child(exploration_weight=1)
+            return node            
+
+
+    def simulate_game2(self, board, starting_colour):
+        cur_colour = starting_colour
+        while not board.has_game_ended():
+            dice_roll = [randint(1, 6), randint(1, 6)]
+            if dice_roll[0] == dice_roll[1]:
+                dice_roll = [dice_roll[0]] * 4
+            result = self.move_recursively(board, cur_colour, dice_roll)
+            not_a_double = len(dice_roll) == 2
+            if not_a_double:
+                new_dice_roll = dice_roll.copy()
+                new_dice_roll.reverse()
+                result_swapped = self.move_recursively(board, cur_colour,
+                                                    dice_rolls=new_dice_roll)
+                if result_swapped['best_value'] < result['best_value'] and \
+                        len(result_swapped['best_moves']) >= len(result['best_moves']):
+                    result = result_swapped
+            if len(result['best_moves']) != 0:
+                for move in result['best_moves']:
+                    piece = board.get_piece_at(move['piece_at'])
+                    board.move_piece(piece, move['die_roll'])
+            cur_colour = cur_colour.other()
+        if board.who_won() == starting_colour:
+            return 1
+        else:
+            return -1
+
+    def move_recursively(self, board, colour, dice_rolls):
+        best_board_value = float('inf')
+        best_pieces_to_move = []
+
+        pieces_to_try = [x.location for x in board.get_pieces(colour)]
+        pieces_to_try = list(set(pieces_to_try))
+
+        valid_pieces = []
+        for piece_location in pieces_to_try:
+            valid_pieces.append(board.get_piece_at(piece_location))
+        valid_pieces.sort(key=Piece.spaces_to_home, reverse=True)
+
+        dice_rolls_left = dice_rolls.copy()
+        die_roll = dice_rolls_left.pop(0)
+
+        for piece in valid_pieces:
+            if board.is_move_possible(piece, die_roll):
+                board_copy = board.create_copy()
+                new_piece = board_copy.get_piece_at(piece.location)
+                board_copy.move_piece(new_piece, die_roll)
+                if len(dice_rolls_left) > 0:
+                    result = self.move_recursively(board_copy, colour, dice_rolls_left)
+                    if len(result['best_moves']) == 0:
+                        # we have done the best we can do
+                        board_value = self.evaluate_board(board_copy, colour)
+                        if board_value < best_board_value and len(best_pieces_to_move) < 2:
+                            best_board_value = board_value
+                            best_pieces_to_move = [{'die_roll': die_roll, 'piece_at': piece.location}]
+                    elif result['best_value'] < best_board_value:
+                        new_best_moves_length = len(result['best_moves']) + 1
+                        if new_best_moves_length >= len(best_pieces_to_move):
+                            best_board_value = result['best_value']
+                            move = {'die_roll': die_roll, 'piece_at': piece.location}
+                            best_pieces_to_move = [move] + result['best_moves']
+                else:
+                    board_value = self.evaluate_board(board_copy, colour)
+                    if board_value < best_board_value and len(best_pieces_to_move) < 2:
+                        best_board_value = board_value
+                        best_pieces_to_move = [{'die_roll': die_roll, 'piece_at': piece.location}]
+
+        return {'best_value': best_board_value,
+                'best_moves': best_pieces_to_move}
+
+    def evaluate_board(self, board, colour):
+        board_stats = self.assess_board(colour, board)
+        board_value = board_stats['sum_distances'] - float(board_stats['sum_distances_opponent']) / 3 + \
+                      float(board_stats['sum_single_distance_away_from_home']) / 6 - \
+                      board_stats['number_occupied_spaces'] - board_stats['opponents_taken_pieces'] + \
+                      3 * board_stats['pieces_on_board'] + float(board_stats['sum_distances_to_endzone']) / 6
+
+        return board_value
+    def assess_board(self, colour, myboard):
+        pieces = myboard.get_pieces(colour)
+        pieces_on_board = len(pieces)
+        sum_distances = 0
+        number_of_singles = 0
+        number_occupied_spaces = 0
+        sum_single_distance_away_from_home = 0
+        sum_distances_to_endzone = 0
+        
+        for piece in pieces:
+            sum_distances = sum_distances + piece.spaces_to_home()
+            if piece.spaces_to_home() > 6:
+                sum_distances_to_endzone += piece.spaces_to_home() - 6
+        for location in range(1, 25):
+            pieces = myboard.pieces_at(location)
+            if len(pieces) != 0 and pieces[0].colour == colour:
+                if len(pieces) == 1:
+                    number_of_singles = number_of_singles + 1
+                    sum_single_distance_away_from_home += 25 - pieces[0].spaces_to_home()
+                elif len(pieces) > 1:
+                    number_occupied_spaces = number_occupied_spaces + 1
+        opponents_taken_pieces = len(myboard.get_taken_pieces(colour.other()))
+        opponent_pieces = myboard.get_pieces(colour.other())
+        sum_distances_opponent = 0
+        for piece in opponent_pieces:
+            sum_distances_opponent = sum_distances_opponent + piece.spaces_to_home()
+        return {
+            'number_occupied_spaces': number_occupied_spaces,
+            'opponents_taken_pieces': opponents_taken_pieces,
+            'sum_distances': sum_distances,
+            'sum_distances_opponent': sum_distances_opponent,
+            'number_of_singles': number_of_singles,
+            'sum_single_distance_away_from_home': sum_single_distance_away_from_home,
+            'pieces_on_board': pieces_on_board,
+            'sum_distances_to_endzone': sum_distances_to_endzone,
+        }
+    def backup(self, reward,v):
+        while v.parent is not None:
+            v.visits += 1
+            v.total_reward += reward
+            v = v.parent
+        return 
+
+class MCTS_shayOren5(Strategy):
+    @staticmethod
+    def get_difficulty():
+        return "shimeh"
+    def __init__(self):
+        self.tree = None
+
+    def move(self, board, colour, dice_roll, make_move, opponents_activity):
+        log("Starting MCTS move calculation")
+        
+        start_time = time.time()
+        time_limit = board.getTheTimeLim() - 0.75 if board.getTheTimeLim() != -1 else float('inf')
+        self.tree = MCTSNode(state=board, colour=colour, dice_roll=dice_roll)
+
+        root = self.tree
+
+        while time.time() - start_time < time_limit:
+            # Selection
+            v1 = self.treePolicy(root, colour)
+            delta = self.simulate_game2(v1.state, colour)
+            self.backup(delta, v1)   
+
+        print(f"number of children: {len(root.children)}")
+        best_child = root.best_child(exploration_weight=1.0)
+        best_move = best_child.move
+        #log(f"Selected best move: {best_move}")
+        log(f"Selected best move: {best_move}")
+        for move in best_move:
+            if colour !=  0:
+                log(f"Moving piece at {move['piece_at']} to {move['piece_at'] + move['die_roll']}")
+            make_move(move['piece_at'], move['die_roll'])
+        self.tree.print_tree()
+        log_tree(f"_____________________________________________")
+    def treePolicy(self, node, root_colour):
+        if node is not None:
+            while not node.state.has_game_ended():
+                if not node.is_fully_expanded():
+                    return node.expand()
+                else:
+                    node = node.best_child(exploration_weight=1)
+            return node            
+
+
+    def simulate_game2(self, board, starting_colour):
+        cur_colour = starting_colour
+        while not board.has_game_ended():
+            dice_roll = [randint(1, 6), randint(1, 6)]
+            if dice_roll[0] == dice_roll[1]:
+                dice_roll = [dice_roll[0]] * 4
+            result = self.move_recursively(board, cur_colour, dice_roll)
+            not_a_double = len(dice_roll) == 2
+            if not_a_double:
+                new_dice_roll = dice_roll.copy()
+                new_dice_roll.reverse()
+                result_swapped = self.move_recursively(board, cur_colour,
+                                                    dice_rolls=new_dice_roll)
+                if result_swapped['best_value'] < result['best_value'] and \
+                        len(result_swapped['best_moves']) >= len(result['best_moves']):
+                    result = result_swapped
+            if len(result['best_moves']) != 0:
+                for move in result['best_moves']:
+                    piece = board.get_piece_at(move['piece_at'])
+                    board.move_piece(piece, move['die_roll'])
+            cur_colour = cur_colour.other()
+        if board.who_won() == starting_colour:
+            return 1
+        else:
+            return -1
+
+    def move_recursively(self, board, colour, dice_rolls):
+        best_board_value = float('inf')
+        best_pieces_to_move = []
+
+        pieces_to_try = [x.location for x in board.get_pieces(colour)]
+        pieces_to_try = list(set(pieces_to_try))
+
+        valid_pieces = []
+        for piece_location in pieces_to_try:
+            valid_pieces.append(board.get_piece_at(piece_location))
+        valid_pieces.sort(key=Piece.spaces_to_home, reverse=True)
+
+        dice_rolls_left = dice_rolls.copy()
+        die_roll = dice_rolls_left.pop(0)
+
+        for piece in valid_pieces:
+            if board.is_move_possible(piece, die_roll):
+                board_copy = board.create_copy()
+                new_piece = board_copy.get_piece_at(piece.location)
+                board_copy.move_piece(new_piece, die_roll)
+                if len(dice_rolls_left) > 0:
+                    result = self.move_recursively(board_copy, colour, dice_rolls_left)
+                    if len(result['best_moves']) == 0:
+                        # we have done the best we can do
+                        board_value = self.evaluate_board(board_copy, colour)
+                        if board_value < best_board_value and len(best_pieces_to_move) < 2:
+                            best_board_value = board_value
+                            best_pieces_to_move = [{'die_roll': die_roll, 'piece_at': piece.location}]
+                    elif result['best_value'] < best_board_value:
+                        new_best_moves_length = len(result['best_moves']) + 1
+                        if new_best_moves_length >= len(best_pieces_to_move):
+                            best_board_value = result['best_value']
+                            move = {'die_roll': die_roll, 'piece_at': piece.location}
+                            best_pieces_to_move = [move] + result['best_moves']
+                else:
+                    board_value = self.evaluate_board(board_copy, colour)
+                    if board_value < best_board_value and len(best_pieces_to_move) < 2:
+                        best_board_value = board_value
+                        best_pieces_to_move = [{'die_roll': die_roll, 'piece_at': piece.location}]
+
+        return {'best_value': best_board_value,
+                'best_moves': best_pieces_to_move}
+
+    def evaluate_board(self, board, colour):
+        board_stats = self.assess_board(colour, board)
+        board_value = board_stats['sum_distances'] - float(board_stats['sum_distances_opponent'])/3 + \
+                      float(board_stats['sum_single_distance_away_from_home'])/6 - \
+                      board_stats['number_occupied_spaces'] - board_stats['opponents_taken_pieces']
+
+        return board_value
+    def assess_board(self, colour, myboard):
+        pieces = myboard.get_pieces(colour)
+        pieces_on_board = len(pieces)
+        sum_distances = 0
+        number_of_singles = 0
+        number_occupied_spaces = 0
+        sum_single_distance_away_from_home = 0
+        sum_distances_to_endzone = 0
+        
+        for piece in pieces:
+            sum_distances = sum_distances + piece.spaces_to_home()
+            if piece.spaces_to_home() > 6:
+                sum_distances_to_endzone += piece.spaces_to_home() - 6
+        for location in range(1, 25):
+            pieces = myboard.pieces_at(location)
+            if len(pieces) != 0 and pieces[0].colour == colour:
+                if len(pieces) == 1:
+                    number_of_singles = number_of_singles + 1
+                    sum_single_distance_away_from_home += 25 - pieces[0].spaces_to_home()
+                elif len(pieces) > 1:
+                    number_occupied_spaces = number_occupied_spaces + 1
+        opponents_taken_pieces = len(myboard.get_taken_pieces(colour.other()))
+        opponent_pieces = myboard.get_pieces(colour.other())
+        sum_distances_opponent = 0
+        for piece in opponent_pieces:
+            sum_distances_opponent = sum_distances_opponent + piece.spaces_to_home()
+        return {
+            'number_occupied_spaces': number_occupied_spaces,
+            'opponents_taken_pieces': opponents_taken_pieces,
+            'sum_distances': sum_distances,
+            'sum_distances_opponent': sum_distances_opponent,
+            'number_of_singles': number_of_singles,
+            'sum_single_distance_away_from_home': sum_single_distance_away_from_home,
+            'pieces_on_board': pieces_on_board,
+            'sum_distances_to_endzone': sum_distances_to_endzone,
+        }
+    def backup(self, reward,v):
+        while v.parent is not None:
+            v.visits += 1
+            v.total_reward += reward
+            v = v.parent
+        return 
+
+class MCTS_shayOren6(Strategy):
+    @staticmethod
+    def get_difficulty():
+        return "shimeh"
+    def __init__(self):
+        self.tree = None
+
+    def move(self, board, colour, dice_roll, make_move, opponents_activity):
+        log("Starting MCTS move calculation")
+        
+        start_time = time.time()
+        time_limit = board.getTheTimeLim() - 0.75 if board.getTheTimeLim() != -1 else float('inf')
+        self.tree = MCTSNode(state=board, colour=colour, dice_roll=dice_roll)
+
+        root = self.tree
+
+        while time.time() - start_time < time_limit:
+            # Selection
+            v1 = self.treePolicy(root, colour)
+            delta = self.simulate_game2(v1.state, colour)
+            self.backup(delta, v1)   
+
+        print(f"number of children: {len(root.children)}")
+        best_child = root.best_child(exploration_weight=1.0)
+        best_move = best_child.move
+        #log(f"Selected best move: {best_move}")
+        log(f"Selected best move: {best_move}")
+        for move in best_move:
+            if colour !=  0:
+                log(f"Moving piece at {move['piece_at']} to {move['piece_at'] + move['die_roll']}")
+            make_move(move['piece_at'], move['die_roll'])
+        self.tree.print_tree()
+        log_tree(f"_____________________________________________")
+    def treePolicy(self, node, root_colour):
+        if node is not None:
+            while not node.state.has_game_ended():
+                if not node.is_fully_expanded():
+                    return node.expand()
+                else:
+                    node = node.best_child(exploration_weight=1)
+            return node            
+
+
+    def simulate_game2(self, board, starting_colour):
+        cur_colour = starting_colour
+        while not board.has_game_ended():
+            dice_roll = [randint(1, 6), randint(1, 6)]
+            if dice_roll[0] == dice_roll[1]:
+                dice_roll = [dice_roll[0]] * 4
+            result = self.move_recursively(board, cur_colour, dice_roll)
+            not_a_double = len(dice_roll) == 2
+            if not_a_double:
+                new_dice_roll = dice_roll.copy()
+                new_dice_roll.reverse()
+                result_swapped = self.move_recursively(board, cur_colour,
+                                                    dice_rolls=new_dice_roll)
+                if result_swapped['best_value'] < result['best_value'] and \
+                        len(result_swapped['best_moves']) >= len(result['best_moves']):
+                    result = result_swapped
+            if len(result['best_moves']) != 0:
+                for move in result['best_moves']:
+                    piece = board.get_piece_at(move['piece_at'])
+                    board.move_piece(piece, move['die_roll'])
+            cur_colour = cur_colour.other()
+        if board.who_won() == starting_colour:
+            return 1
+        else:
+            return -1
+
+    def move_recursively(self, board, colour, dice_rolls):
+        best_board_value = float('inf')
+        best_pieces_to_move = []
+
+        pieces_to_try = [x.location for x in board.get_pieces(colour)]
+        pieces_to_try = list(set(pieces_to_try))
+
+        valid_pieces = []
+        for piece_location in pieces_to_try:
+            valid_pieces.append(board.get_piece_at(piece_location))
+        valid_pieces.sort(key=Piece.spaces_to_home, reverse=True)
+
+        dice_rolls_left = dice_rolls.copy()
+        die_roll = dice_rolls_left.pop(0)
+
+        for piece in valid_pieces:
+            if board.is_move_possible(piece, die_roll):
+                board_copy = board.create_copy()
+                new_piece = board_copy.get_piece_at(piece.location)
+                board_copy.move_piece(new_piece, die_roll)
+                if len(dice_rolls_left) > 0:
+                    result = self.move_recursively(board_copy, colour, dice_rolls_left)
+                    if len(result['best_moves']) == 0:
+                        # we have done the best we can do
+                        board_value = self.evaluate_board(board_copy, colour)
+                        if board_value < best_board_value and len(best_pieces_to_move) < 2:
+                            best_board_value = board_value
+                            best_pieces_to_move = [{'die_roll': die_roll, 'piece_at': piece.location}]
+                    elif result['best_value'] < best_board_value:
+                        new_best_moves_length = len(result['best_moves']) + 1
+                        if new_best_moves_length >= len(best_pieces_to_move):
+                            best_board_value = result['best_value']
+                            move = {'die_roll': die_roll, 'piece_at': piece.location}
+                            best_pieces_to_move = [move] + result['best_moves']
+                else:
+                    board_value = self.evaluate_board(board_copy, colour)
+                    if board_value < best_board_value and len(best_pieces_to_move) < 2:
+                        best_board_value = board_value
+                        best_pieces_to_move = [{'die_roll': die_roll, 'piece_at': piece.location}]
+
+        return {'best_value': best_board_value,
+                'best_moves': best_pieces_to_move}
+
+    def evaluate_board(self, board, colour):
+        board_stats = self.assess_board(colour, board)
+        board_value = board_stats['sum_distances'] - float(board_stats['sum_distances_opponent']) / 3 + \
+                      float(board_stats['sum_single_distance_away_from_home']) / 6 - \
+                      board_stats['number_occupied_spaces'] - board_stats['opponents_taken_pieces'] + \
+                      3 * board_stats['pieces_on_board'] - board_stats['number_of_singles']
+
+        return board_value
+    def assess_board(self, colour, myboard):
+        pieces = myboard.get_pieces(colour)
+        pieces_on_board = len(pieces)
+        sum_distances = 0
+        number_of_singles = 0
+        number_occupied_spaces = 0
+        sum_single_distance_away_from_home = 0
+        sum_distances_to_endzone = 0
+        
+        for piece in pieces:
+            sum_distances = sum_distances + piece.spaces_to_home()
+            if piece.spaces_to_home() > 6:
+                sum_distances_to_endzone += piece.spaces_to_home() - 6
+        for location in range(1, 25):
+            pieces = myboard.pieces_at(location)
+            if len(pieces) != 0 and pieces[0].colour == colour:
+                if len(pieces) == 1:
+                    number_of_singles = number_of_singles + 1
+                    sum_single_distance_away_from_home += 25 - pieces[0].spaces_to_home()
+                elif len(pieces) > 1:
+                    number_occupied_spaces = number_occupied_spaces + 1
+        opponents_taken_pieces = len(myboard.get_taken_pieces(colour.other()))
+        opponent_pieces = myboard.get_pieces(colour.other())
+        sum_distances_opponent = 0
+        for piece in opponent_pieces:
+            sum_distances_opponent = sum_distances_opponent + piece.spaces_to_home()
+        return {
+            'number_occupied_spaces': number_occupied_spaces,
+            'opponents_taken_pieces': opponents_taken_pieces,
+            'sum_distances': sum_distances,
+            'sum_distances_opponent': sum_distances_opponent,
+            'number_of_singles': number_of_singles,
+            'sum_single_distance_away_from_home': sum_single_distance_away_from_home,
+            'pieces_on_board': pieces_on_board,
+            'sum_distances_to_endzone': sum_distances_to_endzone,
+        }
+    def backup(self, reward,v):
+        while v.parent is not None:
+            v.visits += 1
+            v.total_reward += reward
+            v = v.parent
+        return 
+
+
+class MCTS_shayOren7(Strategy):
+    @staticmethod
+    def get_difficulty():
+        return "shimeh"
+    def __init__(self):
+        self.tree = None
+
+    def move(self, board, colour, dice_roll, make_move, opponents_activity):
+        log("Starting MCTS move calculation")
+        
+        start_time = time.time()
+        time_limit = board.getTheTimeLim() - 0.75 if board.getTheTimeLim() != -1 else float('inf')
+        self.tree = MCTSNode(state=board, colour=colour, dice_roll=dice_roll)
+
+        root = self.tree
+
+        while time.time() - start_time < time_limit:
+            # Selection
+            v1 = self.treePolicy(root, colour)
+            delta = self.simulate_game2(v1.state, colour)
+            self.backup(delta, v1)   
+
+        print(f"number of children: {len(root.children)}")
+        best_child = root.best_child(exploration_weight=1.0)
+        best_move = best_child.move
+        #log(f"Selected best move: {best_move}")
+        log(f"Selected best move: {best_move}")
+        for move in best_move:
+            if colour !=  0:
+                log(f"Moving piece at {move['piece_at']} to {move['piece_at'] + move['die_roll']}")
+            make_move(move['piece_at'], move['die_roll'])
+        self.tree.print_tree()
+        log_tree(f"_____________________________________________")
+    def treePolicy(self, node, root_colour):
+        if node is not None:
+            while not node.state.has_game_ended():
+                if not node.is_fully_expanded():
+                    return node.expand()
+                else:
+                    node = node.best_child(exploration_weight=1)
+            return node            
+
+
+    def simulate_game2(self, board, starting_colour):
+        cur_colour = starting_colour
+        while not board.has_game_ended():
+            dice_roll = [randint(1, 6), randint(1, 6)]
+            if dice_roll[0] == dice_roll[1]:
+                dice_roll = [dice_roll[0]] * 4
+            result = self.move_recursively(board, cur_colour, dice_roll)
+            not_a_double = len(dice_roll) == 2
+            if not_a_double:
+                new_dice_roll = dice_roll.copy()
+                new_dice_roll.reverse()
+                result_swapped = self.move_recursively(board, cur_colour,
+                                                    dice_rolls=new_dice_roll)
+                if result_swapped['best_value'] < result['best_value'] and \
+                        len(result_swapped['best_moves']) >= len(result['best_moves']):
+                    result = result_swapped
+            if len(result['best_moves']) != 0:
+                for move in result['best_moves']:
+                    piece = board.get_piece_at(move['piece_at'])
+                    board.move_piece(piece, move['die_roll'])
+            cur_colour = cur_colour.other()
+        if board.who_won() == starting_colour:
+            return 1
+        else:
+            return -1
+
+    def move_recursively(self, board, colour, dice_rolls):
+        best_board_value = float('inf')
+        best_pieces_to_move = []
+
+        pieces_to_try = [x.location for x in board.get_pieces(colour)]
+        pieces_to_try = list(set(pieces_to_try))
+
+        valid_pieces = []
+        for piece_location in pieces_to_try:
+            valid_pieces.append(board.get_piece_at(piece_location))
+        valid_pieces.sort(key=Piece.spaces_to_home, reverse=True)
+
+        dice_rolls_left = dice_rolls.copy()
+        die_roll = dice_rolls_left.pop(0)
+
+        for piece in valid_pieces:
+            if board.is_move_possible(piece, die_roll):
+                board_copy = board.create_copy()
+                new_piece = board_copy.get_piece_at(piece.location)
+                board_copy.move_piece(new_piece, die_roll)
+                if len(dice_rolls_left) > 0:
+                    result = self.move_recursively(board_copy, colour, dice_rolls_left)
+                    if len(result['best_moves']) == 0:
+                        # we have done the best we can do
+                        board_value = self.evaluate_board(board_copy, colour)
+                        if board_value < best_board_value and len(best_pieces_to_move) < 2:
+                            best_board_value = board_value
+                            best_pieces_to_move = [{'die_roll': die_roll, 'piece_at': piece.location}]
+                    elif result['best_value'] < best_board_value:
+                        new_best_moves_length = len(result['best_moves']) + 1
+                        if new_best_moves_length >= len(best_pieces_to_move):
+                            best_board_value = result['best_value']
+                            move = {'die_roll': die_roll, 'piece_at': piece.location}
+                            best_pieces_to_move = [move] + result['best_moves']
+                else:
+                    board_value = self.evaluate_board(board_copy, colour)
+                    if board_value < best_board_value and len(best_pieces_to_move) < 2:
+                        best_board_value = board_value
+                        best_pieces_to_move = [{'die_roll': die_roll, 'piece_at': piece.location}]
+
+        return {'best_value': best_board_value,
+                'best_moves': best_pieces_to_move}
+
+    def evaluate_board(self, board, colour):
+        board_stats = self.assess_board(colour, board)
+        board_value = board_stats['sum_distances'] - float(board_stats['sum_distances_opponent'])/3 + \
+                      2 * board_stats['number_of_singles'] - \
+                      board_stats['number_occupied_spaces'] - board_stats['opponents_taken_pieces']
+        return board_value
+    def assess_board(self, colour, myboard):
+        pieces = myboard.get_pieces(colour)
+        pieces_on_board = len(pieces)
+        sum_distances = 0
+        number_of_singles = 0
+        number_occupied_spaces = 0
+        sum_single_distance_away_from_home = 0
+        sum_distances_to_endzone = 0
+        
         for piece in pieces:
             sum_distances = sum_distances + piece.spaces_to_home()
             if piece.spaces_to_home() > 6:
