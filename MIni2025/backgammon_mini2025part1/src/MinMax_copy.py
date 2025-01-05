@@ -1675,17 +1675,6 @@ class MinMax_shayOren8(Strategy):
                 if beta <= alpha:
                     break
         return best_val
-    
-            
-
-
-
-        
-
-
-    
-  
-
     def get_all_possible_moves(self, board, colour, dice_roll, start_time, time_limit):
         if self.time_limit != -1:  
             if time.time() - start_time > time_limit:
@@ -1713,11 +1702,6 @@ class MinMax_shayOren8(Strategy):
                         for new_board, moves in rest_dice_board.items():
                             all_possible_moves[new_board] = [{'piece_at': piece.location, 'die_roll': dice_roll}] + moves
         return all_possible_moves
-
-
-                        
-
-                    
 
     def evaluate_board(self, myboard, colour):
         board_stats = self.assess_board(colour, myboard)

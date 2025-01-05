@@ -189,7 +189,7 @@ class MinMax_shayOren(Strategy):
             'threat_level': threat_level,
         }
                 
-    def assess_board(self, colour, myboard):
+    def assess_board_0(self, colour, myboard):
         pieces = myboard.get_pieces(colour)
         pieces_on_board = len(pieces)
         sum_distances = 0
@@ -277,7 +277,7 @@ class MinMax_shayOren(Strategy):
             'first_tower': first_tower
         }
               
-    def assess_board_1before(self, colour, myboard):
+    def assess_board(self, colour, myboard):
         pieces = myboard.get_pieces(colour)
         pieces_on_board = len(pieces)
         sum_distances = 0
@@ -422,38 +422,44 @@ class MinMax_shayOren(Strategy):
         for diceA in range(1,7):
             for diceB in range(diceA, 7):
                 if (diceA!=diceB):
-                    dice_rolls = [diceA, diceB]
+                    dice_rolls.append(([diceA, diceB], 1/36))
                 else:
-                    dice_rolls = [diceA, diceA, diceA, diceA]
-                posible_states = self.get_all_possible_moves(board, colour, dice_rolls, start_time, time_limit)
+                    dice_rolls.append(([diceA]*4, 1/18))
         
         if maximizing_player:
-            best_val = float('-inf')
-            for new_board in posible_states.keys():
-                val = self.minmax(new_board, colour, depth-1, False, alpha, beta, start_time, time_limit)
-                if dice_rolls[0] != dice_rolls[1]:
-                    prop = 1/18
-                else:
-                    prop = 1/36
-                val = val #* prop*(depth*depth/2)
-                best_val = max(best_val, val)
-                alpha = max(alpha, val)
-                if beta <= alpha:
-                    break
+            max_eval = float('-inf') 
+            for dice_roll, prob in dice_rolls:
+                possible_states = self.get_all_possible_moves(board, colour, dice_roll, 
+                                                            start_time, time_limit)
+                
+                for new_board in possible_states.keys():
+                    eval = self.minmax(new_board, colour, depth-1, False, alpha, beta, 
+                                     start_time, time_limit)
+                    eval = eval * prob
+                    max_eval = max(max_eval, eval)
+                    alpha = max(alpha, eval)
+                    
+                    if beta <= alpha:
+                        break
+                        
+            return max_eval
         else:
-            best_val = float('inf')
-            for new_board in posible_states.keys():
-                val = self.minmax(new_board, colour, depth-1, True, alpha, beta, start_time, time_limit)
-                if dice_rolls[0] != dice_rolls[1]:
-                    prop = 1/18
-                else:
-                    prop = 1/36
-                val = val * prop#*(depth*depth/2)
-                best_val = min(best_val, val)
-                beta = min(beta, val)
-                if beta <= alpha:
-                    break
-        return best_val
+            min_eval = float('inf')
+            
+            for dice_roll, prob in dice_rolls:
+                possible_states = self.get_all_possible_moves(board, colour.other(), dice_roll,
+                                                            start_time, time_limit)
+                
+                for new_board in possible_states.keys():
+                    eval = self.minmax(new_board, colour, depth-1, True, alpha, beta,
+                                     start_time, time_limit)
+                    eval = eval * prob
+                    min_eval = min(min_eval, eval)
+                    beta = min(beta, eval)
+                    
+                    if beta <= alpha:
+                        break
+            return min_eval
     
             
 

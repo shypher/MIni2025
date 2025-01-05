@@ -3,6 +3,7 @@ from src.strategies import MoveFurthestBackStrategy, HumanStrategy, MoveRandomPi
 from src.MinMax import MinMax_shayOren
 from src.MinMax_copy import MinMax_shayOren2, MinMax_shayOren3, MinMax_shayOren4, MinMax_shayOren5, MinMax_shayOren6, MinMax_shayOren7, MinMax_shayOren8, MinMax_shayOren9, MCTS_shayOren2
 from src.MCTS import MCTS_shayOren
+from src.MCTS2 import MCTS_shayOren2
 class StrategyFactory:
     @staticmethod
     def create_by_name(strategy_name):
@@ -20,6 +21,7 @@ class StrategyFactory:
             MoveFurthestBackStrategy,
             CompareAllMovesSimple,
             HumanStrategy,MCTS_shayOren2,
+            MinMax_shayOren, MinMax_shayOren8, MCTS_shayOren2,
         ]
         """MinMax_shayOren2,
             MinMax_shayOren3,

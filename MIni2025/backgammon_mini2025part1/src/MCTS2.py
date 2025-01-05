@@ -9,7 +9,7 @@ import random
 from random import randint, shuffle
 from src.compare_all_moves_strategy import CompareAllMovesSimple
 
- 
+All_dice_roll = [[1,1,1,1],[1,2],[1,3],[1,4],[1,5],[1,6],[2,2,2,2],[2,3],[2,4],[2,5],[2,6],[3,3,3,3],[3,4],[3,5],[3,6],[4,4,4,4],[4,5],[4,6],[5,5,5,5],[5,6],[6,6,6,6]]
 def log(message, file_path="tournament_log.txt"):
     with open(file_path, "a") as log_file:
         log_file.write(message + "\n")
@@ -18,7 +18,7 @@ def log_tree(message, file_path="tree.txt"):
     with open(file_path, "a") as log_file:
         log_file.write(message + "\n")
     
-class MCTS_shayOren(Strategy):
+class MCTS_shayOren2(Strategy):
     @staticmethod
     def get_difficulty():
         return "shimeh"
@@ -27,125 +27,38 @@ class MCTS_shayOren(Strategy):
 
     def move(self, board, colour, dice_roll, make_move, opponents_activity):
         log("Starting MCTS move calculation")
+        
         start_time = time.time()
         time_limit = board.getTheTimeLim() - 0.75 if board.getTheTimeLim() != -1 else float('inf')
-        self.tree = MCTSNode(state=board, colour=colour, dice_roll=dice_roll, dice_roll_needed=False)
+        self.tree = MCTSNode(state=board, colour=colour, dice_roll=dice_roll)
 
         root = self.tree
-        iterations = 0
 
         while time.time() - start_time < time_limit:
-            iterations += 1
-            node = root
-
             # Selection
-            while not node.untried_moves and node.children:
-                node = node.best_child(exploration_weight = 1.0 / (1 + iterations / 100))
-                #log(f"Selecting child node: Visits={node.visits}, Total Reward={node.total_reward}")
+            v1 = self.treePolicy(root, colour)
+            delta = self.simulate_game2(v1.state, colour)
+            self.backup(delta, v1)   
 
-            # Expansion
-            if node.untried_moves:
-                #print(node.untried_moves)
-                board = list(node.untried_moves.keys())[0]
-                moves = node.untried_moves[board]
-                node.untried_moves.pop(board)
-                #log(f"Expanding node with move: {move}")
-                child_node = node.add_child(moves, node.state, dice_roll_needed=True)
-                node = child_node
 
-            # Simulation
-            reward = self.simulate_game2(node.state.create_copy(), colour)
-            #log(f"Simulation completed with reward={reward}")
-
-            # Backpropagation
-            while node:
-                node.update(reward)
-                #log(f"Backpropagating reward={reward} for node with move={node.move}")
-                node = node.parent
-            #log(f"Iteration: {iterations}")
-        if root.best_child(exploration_weight=1) is not None:
-            best_move = root.best_child(exploration_weight=1).move
+        best_child = root.best_child(exploration_weight=1.0)
+        best_move = best_child.move
         #log(f"Selected best move: {best_move}")
-            log(f"Selected best move: {best_move}")
-
-            for move in best_move:
-                if colour !=  0:
-                    log(f"Moving piece at {move['piece_at']} to {move['piece_at'] + move['die_roll']}")
-                make_move(move['piece_at'], move['die_roll'])
+        log(f"Selected best move: {best_move}")
+        for move in best_move:
+            if colour !=  0:
+                log(f"Moving piece at {move['piece_at']} to {move['piece_at'] + move['die_roll']}")
+            make_move(move['piece_at'], move['die_roll'])
         self.tree.print_tree()
         log_tree(f"_____________________________________________")
-                
-    def simulate_game(self, board, colour):
-        game_color = colour
-        while not board.has_game_ended():
-            dice_roll = [randint(1, 6), randint(1, 6)]
-            if dice_roll[0] == dice_roll[1]:
-                dice_roll = [dice_roll[0]] * 4
-            for die_roll in dice_roll:
-                valid_pieces = board.get_pieces(game_color)
-                shuffle(valid_pieces)
-                for piece in valid_pieces:
-                    if board.is_move_possible(piece, die_roll):
-                        #print(f"Moving piece {piece.location} {die_roll}")
-                        #board.print_board()
-                        board.move_piece(piece, die_roll)
-                        break
-            game_color = game_color.other()
-                
-        if board.who_won() == colour:
-            return 1
-        else:
-            return -1
+    def treePolicy(self, node, root_colour):
+        while not node.state.has_game_ended():
+            if not node.is_fully_expanded():
+                return node.expand()
+            else:
+                node = node.best_child(exploration_weight=1)
+        return node            
 
-    def simulate_game_Heuristic(self, board, starting_colour):
-        heuristic_player = CompareAllMovesSimple()
-        current_colour = starting_colour
-
-        # Variables to track dice rolls and moves
-        moves = []
-        previous_dice_roll = []
-
-        while not board.has_game_ended():
-            # Roll the dice
-            dice_roll = [randint(1, 6), randint(1, 6)]
-            if dice_roll[0] == dice_roll[1]:
-                dice_roll *= 2  # Handle doubles
-
-            # Copy the dice roll for manipulation
-            dice_roll_copy = dice_roll.copy()
-
-            # Define the make_move function for simulation
-            def make_move(location, die_roll):
-                self.game.make_move_simulation(
-                    board,
-                    location,
-                    die_roll,
-                    dice_roll_copy,
-                    moves,
-                    previous_dice_roll
-                )
-
-                # Use the heuristic player to make moves
-                heuristic_player.move(
-                    board,
-                    current_colour,
-                    dice_roll_copy,
-                    make_move,
-                    {'dice_roll': previous_dice_roll.copy(), 'opponents_move': moves.copy()}
-                )
-
-                # Reset move tracking for the next player
-                moves.clear()
-                previous_dice_roll.clear()
-
-                # Switch player
-                current_colour = current_colour.other()
-
-                # Determine the reward based on the game outcome
-                if board.who_won() == starting_colour:
-                    return 1  # Win
-                else:
-                    return -1  # Lose
 
     def simulate_game2(self, board, starting_colour):
         cur_colour = starting_colour
@@ -259,9 +172,14 @@ class MCTS_shayOren(Strategy):
             'pieces_on_board': pieces_on_board,
             'sum_distances_to_endzone': sum_distances_to_endzone,
         }
-
+    def backup(self, reward,v):
+        while v.parent is not None:
+            v.visits += 1
+            v.total_reward += reward
+            v = v.parent
+        return 
 class MCTSNode:
-    def __init__(self, state, colour, dice_roll, parent=None, move=None, dice_roll_needed=None):
+    def __init__(self, state, colour, dice_roll, parent=None, move=None):
         self.state = state
         self.colour = colour
         self.dice_roll = dice_roll
@@ -271,16 +189,36 @@ class MCTSNode:
         self.visits = 0
         self.total_reward = 0
         self.untried_moves = self.get_all_possible_moves(state, colour, dice_roll)
-        self.dice_roll_needed = dice_roll_needed  
 
     def is_fully_expanded(self):
         return len(self.untried_moves) == 0
 
 
     def get_all_possible_moves(self, board, colour, dice_roll):
-        if(len(dice_roll) == 0):
-            return []
-        if(len(dice_roll) == 0):
+        """if(len(dice_roll) == 0):
+            dice_rolls = All_dice_roll
+            all_possible_moves = {}
+            pieces_to_try = [x.location for x in board.get_pieces(colour)]
+            pieces_to_try = list(set(pieces_to_try))
+            for dices in dice_rolls:
+                for dice in (set(permutations(dices))):
+                    dices = dice[0]
+                    remeining_dice = dice[1:]
+                    for piece_curr in pieces_to_try:
+                        piece = board.get_piece_at(piece_curr)
+                        if board.is_move_possible(piece, dices):
+                            board_copy = board.create_copy()
+                            new_piece = board_copy.get_piece_at(piece.location)
+                            board_copy.move_piece(new_piece, dices)
+                            rest_dice_board = self.get_all_possible_moves(board_copy, colour, remeining_dice)
+                            if len(rest_dice_board) == 0:
+                                all_possible_moves[board_copy] = [{'piece_at': piece.location, 'die_roll': dices}]
+                            else:
+                                for new_board, moves in rest_dice_board.items():
+                                    all_possible_moves[new_board] = [{'piece_at': piece.location, 'die_roll': dices}] + moves
+                return all_possible_moves
+        else:    """
+        if len(dice_roll) == 0:
             return {}
         all_possible_moves = {}
         pieces_to_try = [x.location for x in board.get_pieces(colour)]
@@ -321,25 +259,27 @@ class MCTSNode:
             exploration_sign = 1 if self.parent is None or self.colour == self.parent.colour else -1
             best = max(
                 self.children,
-                key=lambda child: (child.total_reward / (child.visits + 1e-6)) +
-                                (exploration_sign * exploration_weight * math.sqrt(math.log(self.visits + 1) / (child.visits + 1e-6)))
+                key=lambda child: exploration_sign *((child.total_reward / (child.visits + 1e-6)) +
+                                (exploration_weight * math.sqrt(math.log(self.visits + 1) / (child.visits + 1e-6))))
             )
         except ValueError:
             best = None
         return best
-    def add_child(self, move, new_state, dice_roll_needed):
-        child = MCTSNode(new_state, self.colour.other(), self.dice_roll, parent=self, move=move, dice_roll_needed=dice_roll_needed)
+    def add_child(self, move, new_state):
+        dice_random = [randint(1, 7), randint(1, 7)]
+        if dice_random[0] == dice_random[1]:
+            dice_random = [dice_random[0]] * 4
+        child = MCTSNode(new_state, self.colour.other(),dice_random , parent=self, move=move)
         self.children.append(child)
         return child
 
 
-    def update(self, reward):
-        if self.parent and self.colour != self.parent.colour:
-            reward *= -1  # Flip reward for opponent nodes
-        self.visits += 1
-        self.total_reward += reward
 
     def print_tree(self, depth=0):
         log_tree(f"  " * depth + str(self.move)+ f"Total Reward={self.total_reward}")
         for child in self.children:
             child.print_tree(depth + 1)
+    
+    def expand(self):
+        new_state, move = self.untried_moves.popitem()
+        return self.add_child(move, new_state)
