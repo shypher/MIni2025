@@ -8,7 +8,7 @@ def log(message, file_path="tournament_log.txt"):
     with open(file_path, "a") as log_file:
         log_file.write(message + "\n")
     print(message)
-class MinMax_shayOren(Strategy):
+class MinMax322687153_206000994(Strategy):
     
     @staticmethod
     def get_difficulty():
@@ -356,10 +356,10 @@ class MinMax_shayOren(Strategy):
 
     def move(self, board, colour, dice_roll, make_move, opponents_activity):
         self.minmax_deap=0
-        log("minimax")
+        #log("minimax")
         start_time = time.time()
         if board.getTheTimeLim() != -1:
-            self.time_limit = board.getTheTimeLim() - 0.2
+            self.time_limit = board.getTheTimeLim() - 0.3
         else:
             self.time_limit = -1
         possible_state =  self.get_all_possible_moves(board, colour, dice_roll , start_time, self.time_limit)
@@ -372,7 +372,7 @@ class MinMax_shayOren(Strategy):
         #print(possible_state)
             lest_pieces = board.get_pieces(colour)
             lest_rows = list(set(lest_pieces))
-            log(f"Possible states: {(possible_state).items()}")
+            #log(f"Possible states: {(possible_state).items()}")
             #sort by spaces to home
             lest_rows.sort(key=lambda x: x.spaces_to_home(), reverse=True)
             if len(lest_rows) <=len (dice_roll):
@@ -399,19 +399,20 @@ class MinMax_shayOren(Strategy):
                 best_moves = moves
         if len(best_moves) != 0:
             for move in best_moves:
-                if colour !=  0:
-                    log(f"Moving piece at {move['piece_at']} to {move['piece_at'] + move['die_roll']}")
+                #if colour !=  0:
+                    #log(f"Moving piece at {move['piece_at']} to {move['piece_at'] + move['die_roll']}")
                 make_move(move['piece_at'], move['die_roll'])
         
-        log(f"Best value: {best_val}")
-        board_stat = self.assess_board(colour, board)
-        log(f"board_stat: {board_stat}")      
-        log(f"minmax_deap: {self.minmax_deap}")
+        #log(f"Best value: {best_val}")
+        #board_stat = self.assess_board(colour, board)
+        #log(f"board_stat: {board_stat}")      
+        #log(f"minmax_deap: {self.minmax_deap}")
         self.minmax_deap=0
         return
      
         
     def minmax(self, board, colour, depth, maximizing_player, alpha, beta, start_time, time_limit):
+        eval_sum =0
         self.minmax_deap = max(self.minmax_deap, 4-depth)
         if self.time_limit != -1:  
             if time.time() - start_time > time_limit:
@@ -436,13 +437,16 @@ class MinMax_shayOren(Strategy):
                     eval = self.minmax(new_board, colour, depth-1, False, alpha, beta, 
                                      start_time, time_limit)
                     eval = eval * prob
+                    #
+                    eval_sum=eval_sum+eval
                     max_eval = max(max_eval, eval)
                     alpha = max(alpha, eval)
                     
                     if beta <= alpha:
                         break
                         
-            return max_eval
+            #return max_eval
+            return eval_sum
         else:
             min_eval = float('inf')
             
@@ -457,8 +461,8 @@ class MinMax_shayOren(Strategy):
                     min_eval = min(min_eval, eval)
                     beta = min(beta, eval)
                     
-                    if beta <= alpha:
-                        break
+                    """if beta <= alpha:
+                        break"""
             return min_eval
     
             
@@ -520,14 +524,14 @@ class MinMax_shayOren(Strategy):
         # Updated weights based on strategic importance
 
         weights = {
-            'number_occupied_spaces': 3.0 ,
-            'opponents_taken_pieces': 2.0,
+            'number_occupied_spaces': 4.0 ,
+            'opponents_taken_pieces': 3.0,
             'taken_pieces': -5.0,
             'sum_distances': -1.0,
             'sum_distances_opponent': 2.0,
-            'number_of_singles': -5000.0 ,
-            'sum_single_distance_away_from_home': -3.0,
-            'pieces_off_board': 30.0,
+            'number_of_singles': -5500.0 ,
+            'sum_single_distance_away_from_home': -6.0,
+            'pieces_off_board': 0.0,
             'sum_distances_to_endzone': -15.5,
             'home_control': 300.0 ,
             'board_control': 30.0,
@@ -535,7 +539,7 @@ class MinMax_shayOren(Strategy):
             'sum_distance_far_from_home': -100.0    
             ,'building_of_two': 0.0,
             'tower': -150.0
-            ,'first_tower': -150.0
+            ,'first_tower': -300.0
         }
         # Compute weighted board value
         board_value = sum(weights[key] * board_stats.get(key, 0) for key in weights)
