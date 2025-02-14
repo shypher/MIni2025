@@ -22,7 +22,7 @@ if __name__ == '__main__':
         time_limit = -1
     else:
         time_limit = int(time_limit)
-
+    
     game = Game(
         white_strategy=HumanStrategy(name),
         black_strategy=chosen_strategy,

@@ -118,7 +118,7 @@ class MoveRandomPiece(Strategy):
         return "Easy"
 
     def move(self, board, colour, dice_roll, make_move, opponents_activity):
-        print("MoveRandomPiece")
+
         for die_roll in dice_roll:
             valid_pieces = board.get_pieces(colour)
             shuffle(valid_pieces)

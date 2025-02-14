@@ -8,6 +8,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset
+from src.strategy_factory import StrategyFactory
 class BackgammonNet(Strategy):
     
     def __init__(self, input_size):
@@ -18,6 +19,8 @@ class BackgammonNet(Strategy):
         self.relu2 = nn.ReLU()
         self.output = nn.Linear(40, 1)
         self.sigmoid = nn.Sigmoid() 
+        self.softmax = nn.Softmax(dim=1)
+    
     @staticmethod
     def get_difficulty():
         return "shimishimiya"
