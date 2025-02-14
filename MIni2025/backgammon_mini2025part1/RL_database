@@ -35,8 +35,9 @@ def log(message, file_path="db.txt"):
     with open(file_path, "a") as log_file:
         log_file.write(message + "\n")
     print(message)   
-if __name__ == '__main__':
-    """Board_Generator(5000)
+
+def set_database():
+    Board_Generator(5000)
     #get the min and max values of heuristic in the database, the average value of the heuristic, variance, and standard deviation
     database = np.load('database.npy', allow_pickle=True)
     heuristics= [entry['heuristic_score'] for entry in database]
@@ -65,7 +66,9 @@ if __name__ == '__main__':
     normalized_heuristics_db = np.load('normalized_database.npy', allow_pickle=True)
     for i in range(10):
         log(str(database[i]))
-        log(str(normalized_heuristics_db[i]))"""
+        log(str(normalized_heuristics_db[i]))
+if __name__ == '__main__':
+    set_database()
         
     
     
