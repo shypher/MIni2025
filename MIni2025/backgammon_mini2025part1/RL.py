@@ -11,10 +11,10 @@ from torch.utils.data import random_split
 import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset
 from src.strategy_factory import StrategyFactory
-class BackgammonNet():
+class BackgammonNet(nn.Module):
     
     def __init__(self, input_size):
-        super(BackgammonNet, self).__init__() 
+        super(BackgammonNet, self).__init__()
         self.fc1 = nn.Linear(input_size, 40)
         self.relu1 = nn.ReLU()
         self.fc2 = nn.Linear(40, 40)
@@ -22,16 +22,24 @@ class BackgammonNet():
         self.output = nn.Linear(40, 1)
         self.sigmoid = nn.Sigmoid() 
         self.softmax = nn.Softmax(dim=1)
-    
+        # Define the forward pass for the network
+    def forward(self, x):
+        x = self.fc1(x)  # First layer
+        x = self.relu1(x)  # Activation
+        x = self.fc2(x)  # Second layer
+        x = self.relu2(x)  # Activation
+        x = self.output(x)  # Output layer
+        return x  # Final output (heuristic score)
     @staticmethod
-    def train_network(dataset_path="c:/Users/shay1/Documents/GitHub/MIni2025/MIni2025/backgammon_mini2025part1/normalized_database.npy", batch_size=32, num_epochs=5, learning_rate=1e-3, input_size=48):   
+    def train_network(dataset_path="c:/Users/shay1/Documents/GitHub/MIni2025/MIni2025/backgammon_mini2025part1/normalized_database.npy", batch_size=32, num_epochs=5, learning_rate=1e-3, input_size=29):   
         dataset = np.load(dataset_path, allow_pickle=True)  # Load dataset
-        print("Dataset dtype:", dataset.dtype)  # Debugging print
-
-        # Ensure dataset contains only numerical values
         if isinstance(dataset[0], dict):
-            dataset = np.array([[entry['color'], entry['heuristic_score']] + entry['board'] for entry in dataset], dtype=np.float32)
-        dataset = torch.from_numpy(dataset).float()  # Convert to PyTorch tensor
+            X = np.array([np.concatenate([entry['board'], [entry['color']]]) for entry in dataset], dtype=np.float32)  # Combine board and color
+            y = np.array([entry['heuristic_score'] for entry in dataset], dtype=np.float32)  # Heuristic score is the target
+
+        X_tensor = torch.tensor(X, dtype=torch.float32)  # Features
+        y_tensor = torch.tensor(y, dtype=torch.float32).unsqueeze(1)  
+        dataset = torch.utils.data.TensorDataset(X_tensor, y_tensor)
 
         train_size = int(0.8 * len(dataset))
         val_size = int(0.1 * len(dataset))
