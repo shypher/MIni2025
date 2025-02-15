@@ -11,10 +11,10 @@ from torch.utils.data import random_split
 import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset
 from src.strategy_factory import StrategyFactory
-class BackgammonNet(nn.Module):
+class BackgammonNet():
     
     def __init__(self, input_size):
-        super().__init__()
+        super(BackgammonNet, self).__init__() 
         self.fc1 = nn.Linear(input_size, 40)
         self.relu1 = nn.ReLU()
         self.fc2 = nn.Linear(40, 40)
