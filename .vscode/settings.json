@@ -20,6 +20,7 @@
     },
     "peacock.color": "#0000ff",
     "cSpell.words": [
-        "MCTS"
+        "MCTS",
+        "nbytes"
     ]
 }

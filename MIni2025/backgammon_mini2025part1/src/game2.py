@@ -63,7 +63,7 @@ class Game:
         while True:
             heuristic_score = self.calculate_heuristic(self.board, Colour(i % 2))
             #append the color, heuristic score and board to the board history
-            stateScoreInfo = {'color': Colour(i % 2).value, 'heuristic_score': heuristic_score, 'board': self.board.export_state}
+            stateScoreInfo = {'color': Colour(i % 2).value, 'heuristic_score': heuristic_score, 'board': self.board.export_state()}
             self.boardHistory = np.append(self.boardHistory, stateScoreInfo)
             if verbose:
                 self.board.print_board()
