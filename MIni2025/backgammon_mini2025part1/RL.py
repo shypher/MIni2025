@@ -29,9 +29,9 @@ class BackgammonNet(nn.Module):
         x = self.fc2(x)  # Second layer
         x = self.relu2(x)  # Activation
         x = self.output(x)  # Output layer
-        return x  # Final output (heuristic score)
+        return x  # Final output (heuristic score) #מסתדר? i need you to run the model with 50 epochs see where it gets us
     @staticmethod
-    def train_network(dataset_path="c:/Users/shay1/Documents/GitHub/MIni2025/MIni2025/backgammon_mini2025part1/normalized_database.npy", batch_size=32, num_epochs=5, learning_rate=1e-3, input_size=29):   
+    def train_network(dataset_path="c:/Users/shay1/Documents/GitHub/MIni2025/MIni2025/backgammon_mini2025part1/normalized_database.npy", batch_size=32, num_epochs=50, learning_rate=1e-3, input_size=29):   
         dataset = np.load(dataset_path, allow_pickle=True)  # Load dataset
         if isinstance(dataset[0], dict):
             X = np.array([np.concatenate([entry['board'], [entry['color']]]) for entry in dataset], dtype=np.float32)  # Combine board and color
