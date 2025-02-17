@@ -201,29 +201,6 @@ class MCTSNode:
 
 
     def get_all_possible_moves(self, board, colour, dice_roll):
-        """if(len(dice_roll) == 0):
-            dice_rolls = All_dice_roll
-            all_possible_moves = {}
-            pieces_to_try = [x.location for x in board.get_pieces(colour)]
-            pieces_to_try = list(set(pieces_to_try))
-            for dices in dice_rolls:
-                for dice in (set(permutations(dices))):
-                    dices = dice[0]
-                    remeining_dice = dice[1:]
-                    for piece_curr in pieces_to_try:
-                        piece = board.get_piece_at(piece_curr)
-                        if board.is_move_possible(piece, dices):
-                            board_copy = board.create_copy()
-                            new_piece = board_copy.get_piece_at(piece.location)
-                            board_copy.move_piece(new_piece, dices)
-                            rest_dice_board = self.get_all_possible_moves(board_copy, colour, remeining_dice)
-                            if len(rest_dice_board) == 0:
-                                all_possible_moves[board_copy] = [{'piece_at': piece.location, 'die_roll': dices}]
-                            else:
-                                for new_board, moves in rest_dice_board.items():
-                                    all_possible_moves[new_board] = [{'piece_at': piece.location, 'die_roll': dices}] + moves
-                return all_possible_moves
-        else:    """
         if len(dice_roll) == 0:
             return {}
         all_possible_moves = {}

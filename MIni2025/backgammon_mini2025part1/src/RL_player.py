@@ -1,3 +1,4 @@
+from itertools import permutations
 from src.strategies import Strategy
 from src.piece import Piece
 from fractions import Fraction
@@ -6,7 +7,7 @@ import torch
 import numpy as np
 import time
 
-class RL_player(Strategytr):
+class RL_player(Strategy):
     @staticmethod
     def get_difficulty():
         return "shimy"
@@ -56,7 +57,7 @@ class RL_player(Strategytr):
 
         # Assume there is a function that returns all legal move sequences given board, colour, dice_roll.
         # Each candidate is (for example) a list of moves, where each move is stored as a dict.
-        candidate_moves = board.get_legal_moves(colour, dice_roll)
+        candidate_moves = self.get_all_possible_moves(board, colour, dice_roll)
 
         if not candidate_moves:
             # No legal move was found, so you might decide to pass or return an empty move.
@@ -106,3 +107,27 @@ class RL_player(Strategytr):
             for move_dict in best_move_sequence:
                 # Here it is assumed that each move_dict contains at least the keys "piece_at" and "die_roll".
                 make_move(move_dict['piece_at'], move_dict['die_roll'])
+                
+    def get_all_possible_moves(self, board, colour, dice_roll):
+        if len(dice_roll) == 0:
+            return {}
+        all_possible_moves = {}
+        pieces_to_try = [x.location for x in board.get_pieces(colour)]
+        pieces_to_try = list(set(pieces_to_try))
+            
+        for dice in (set(permutations(dice_roll))):
+            dice_roll = dice[0]
+            remaining_dice = dice[1:]
+            for piece_curr in pieces_to_try:
+                piece = board.get_piece_at(piece_curr)
+                if board.is_move_possible(piece, dice_roll):
+                    board_copy = board.create_copy()
+                    new_piece = board_copy.get_piece_at(piece.location)
+                    board_copy.move_piece(new_piece, dice_roll)
+                    rest_dice_board = self.get_all_possible_moves(board_copy, colour, remaining_dice)
+                    if len(rest_dice_board) == 0:
+                        all_possible_moves[board_copy] = [{'piece_at': piece.location, 'die_roll': dice_roll}]
+                    else:
+                        for new_board, moves in rest_dice_board.items():
+                            all_possible_moves[new_board] = [{'piece_at': piece.location, 'die_roll': dice_roll}] + moves
+        return all_possible_moves
