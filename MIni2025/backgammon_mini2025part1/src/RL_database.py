@@ -5,7 +5,7 @@ from src.strategies import MoveRandomPiece
 import numpy as np 
 from random import randint
 from scipy.special import erf
-
+from MIni2025.backgammon_mini2025part1.src.RL import BackgammonNet
 
 
   

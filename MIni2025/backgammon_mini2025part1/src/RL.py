@@ -1,29 +1,24 @@
-from src.strategies import Strategy
-from src.piece import Piece
-from fractions import Fraction
-import time
-import threading
-from itertools import permutations
+
 import numpy as np 
 import torch
 import torch.nn as nn
 from torch.utils.data import random_split
 import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset
-from src.strategy_factory import StrategyFactory
+
 
 path= "c:/Users/shay1/Documents/GitHub/MIni2025/MIni2025/backgammon_mini2025part1/normalized_database.npy"
 class BackgammonNet(nn.Module):
     
-    def __init__(self, input_size):
+    def __init__(self, input_size=29):
         super(BackgammonNet, self).__init__()
         self.fc1 = nn.Linear(input_size, 40)
         self.relu1 = nn.ReLU()
         self.fc2 = nn.Linear(40, 40)
         self.relu2 = nn.ReLU()
         self.output = nn.Linear(40, 1)
-        self.sigmoid = nn.Sigmoid() 
-        self.softmax = nn.Softmax(dim=1)
+        #self.sigmoid = nn.Sigmoid() 
+        #self.softmax = nn.Softmax(dim=1)
         # Define the forward pass for the network
     def forward(self, x):
         x = self.fc1(x)  # First layer
@@ -33,7 +28,7 @@ class BackgammonNet(nn.Module):
         x = self.output(x)  # Output layer
         return x  # Final output (heuristic score) 
     @staticmethod
-    def train_network(dataset_path=path, batch_size=256, num_epochs=100, learning_rate=5e-4, input_size=29):  
+    def train_network(dataset_path=path, batch_size=256, num_epochs=200, learning_rate=5e-4, input_size=29):  
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print(f"Training on {device}")
         dataset = np.load(dataset_path, allow_pickle=True)  # Load dataset

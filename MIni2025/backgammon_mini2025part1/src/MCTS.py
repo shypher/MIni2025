@@ -230,13 +230,6 @@ class MCTSNode:
         return len(self.untried_moves) == 0
 
     def best_child(self, exploration_weight=1.0):
-        """if self.dice_roll_needed:  # Simulate dice roll if required
-            dice_roll = [randint(1, 6), randint(1, 6)]
-            if dice_roll[0] == dice_roll[1]:
-                dice_roll = [dice_roll[0]] * 4
-            # Return a random child to simulate dice roll outcome
-        """   
-
         # Use UCB for nodes without dice roll
         try:
             # Default to player's turn for root node (no parent)
