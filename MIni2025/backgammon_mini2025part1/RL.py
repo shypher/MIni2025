@@ -11,6 +11,8 @@ from torch.utils.data import random_split
 import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset
 from src.strategy_factory import StrategyFactory
+
+path= "c:/Users/shay1/Documents/GitHub/MIni2025/MIni2025/backgammon_mini2025part1/normalized_database.npy"
 class BackgammonNet(nn.Module):
     
     def __init__(self, input_size):
@@ -29,16 +31,18 @@ class BackgammonNet(nn.Module):
         x = self.fc2(x)  # Second layer
         x = self.relu2(x)  # Activation
         x = self.output(x)  # Output layer
-        return x  # Final output (heuristic score) #מסתדר? i need you to run the model with 50 epochs see where it gets us
+        return x  # Final output (heuristic score) 
     @staticmethod
-    def train_network(dataset_path="c:/Users/shay1/Documents/GitHub/MIni2025/MIni2025/backgammon_mini2025part1/normalized_database.npy", batch_size=32, num_epochs=50, learning_rate=1e-3, input_size=29):   
+    def train_network(dataset_path=path, batch_size=256, num_epochs=100, learning_rate=5e-4, input_size=29):  
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        print(f"Training on {device}")
         dataset = np.load(dataset_path, allow_pickle=True)  # Load dataset
         if isinstance(dataset[0], dict):
             X = np.array([np.concatenate([entry['board'], [entry['color']]]) for entry in dataset], dtype=np.float32)  # Combine board and color
             y = np.array([entry['heuristic_score'] for entry in dataset], dtype=np.float32)  # Heuristic score is the target
 
-        X_tensor = torch.tensor(X, dtype=torch.float32)  # Features
-        y_tensor = torch.tensor(y, dtype=torch.float32).unsqueeze(1)  
+        X_tensor = torch.tensor(X, dtype=torch.float32).to(device)  # Features
+        y_tensor = torch.tensor(y, dtype=torch.float32).unsqueeze(1).to(device)  
         dataset = torch.utils.data.TensorDataset(X_tensor, y_tensor)
 
         train_size = int(0.8 * len(dataset))
@@ -49,13 +53,14 @@ class BackgammonNet(nn.Module):
         val_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False)
         #dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
         # Create the network and optimizer
-        model = BackgammonNet(input_size=input_size)
+        model = BackgammonNet(input_size=input_size).to(device)
         optimizer = optim.Adam(model.parameters(), lr=learning_rate)
         criterion = nn.MSELoss()
         model.train()
         for epoch in range(num_epochs):
             epoch_loss = 0.0
             for inputs, targets in train_loader:
+                inputs, targets = inputs.to(device), targets.to(device)
                 optimizer.zero_grad()
                 outputs = model(inputs)
                 loss = criterion(outputs, targets)
@@ -67,6 +72,7 @@ class BackgammonNet(nn.Module):
             val_loss = 0.0
             with torch.no_grad():
                 for val_inputs, val_targets in val_loader:
+                    val_inputs, val_targets = val_inputs.to(device), val_targets.to(device)
                     val_outputs = model(val_inputs)
                     loss = criterion(val_outputs, val_targets)
                     val_loss += loss.item()
@@ -81,12 +87,15 @@ class BackgammonNet(nn.Module):
         return model, test_set
     @staticmethod
     def evaluate_test_set(model, test_set):
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        model.to(device)
         test_loader = DataLoader(test_set, batch_size=32, shuffle=False)
         criterion = nn.MSELoss()
         model.eval()
         test_loss = 0.0
         with torch.no_grad():
             for test_inputs, test_targets in test_loader:
+                test_inputs, test_targets = test_inputs.to(device), test_targets.to(device)
                 test_outputs = model(test_inputs)
                 loss = criterion(test_outputs, test_targets)
                 test_loss += loss.item()
@@ -94,5 +103,8 @@ class BackgammonNet(nn.Module):
         print(f"Test Set Loss: {avg_test_loss:.6f}")
         
 if __name__ == '__main__':
+    print(torch.cuda.is_available())  # Should return True
+    print(torch.cuda.device_count())  # Should return the number of GPUs
+    print(torch.cuda.get_device_name(0))  # Should return "NVIDIA GeForce RTX 4070 Ti"
     model, test_set = BackgammonNet.train_network()
     BackgammonNet.evaluate_test_set(model, test_set)
