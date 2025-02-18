@@ -21,17 +21,17 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset
 from src.RL import BackgammonNet
 
-class RL_player(Strategy):
+class RLlvlA(Strategy):
     @staticmethod
     def get_difficulty():
         return "shimy"
     def __init__(self):
-        self.boardHistory= None
-
+        self.saved_tree = None
         
-            
+
+
+ 
     def move(self, board, color, dice_roll, make_move, opponents_activity):
-       # self.boardHistory_opp = np.append(board.export_state(),self.boardHistory_opp)
 
         # Record starting time and compute a time limit (if necessary)
         
@@ -52,34 +52,20 @@ class RL_player(Strategy):
             return
         best_score = -float('inf')
         best_move_sequence = None
-        move_scores = []
-        for simulated_board, move_seq in candidate_moves.items():
+        for simulated_board,move_seq in candidate_moves.items():
             simulated_board = board.export_state()
             input_data = np.concatenate([simulated_board, np.array([color.value], dtype=np.float32)])
             input_tensor = torch.tensor(input_data, dtype=torch.float32).unsqueeze(0)
             input_tensor = input_tensor.to(next(model.parameters()).device)
             with torch.no_grad():
                 output = model(input_tensor).item()
-            move_scores.append((output, move_seq))
-
-        # Sort moves by score in descending order and select the top 4
-        move_scores.sort(reverse=True, key=lambda x: x[0])
-        top_moves = move_scores[:4]
-        if top_moves:
-            scores = [np.exp(score) for score, _ in top_moves]
-            total_score = sum(scores)
-            probabilities = [score / total_score for score in scores]
-            best_move_sequence = random.choices([move_seq for _, move_seq in top_moves], weights=probabilities, k=1)[0]
-            
-
-            if best_move_sequence and isinstance(best_move_sequence, list):
-                for move_dict in best_move_sequence:
-                    make_move(move_dict['piece_at'], move_dict['die_roll'])
-       # self.boardHistory_my = np.append(board.export_state(),self.boardHistory_my)
-    
-                    
-        
-                
+            if output > best_score:
+                best_score = output
+                best_move_sequence = move_seq
+        if best_move_sequence and isinstance(best_move_sequence, list):
+            for move_dict in best_move_sequence:
+                make_move(move_dict['piece_at'], move_dict['die_roll'])
+     
     def get_all_possible_moves(self, board, color, dice_roll):
         if len(dice_roll) == 0:
             return {}

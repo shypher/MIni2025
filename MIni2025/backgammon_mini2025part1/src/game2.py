@@ -125,13 +125,15 @@ class Game:
 
             # **Insert the game ending check here**
             if self.board.has_game_ended():  # Check if the game has ended
+                stateScoreInfo = {'color': Colour(i % 2).value, 'heuristic_score': heuristic_score, 'board': self.board.export_state()}
+                self.boardHistory = np.append(self.boardHistory, stateScoreInfo)
                 if verbose:
                     log(f"{self.board.who_won()} has won the game!")
                 stop_input_event.set()  # Stop input in strategies.py as the game is over
                 return  # Exit the loop and end the game
 
             i += 1 #switching between players turns
-
+        
     def get_rolls_to_move(self, location, requested_move, available_rolls):
         # This first check ensures we return doing as little work as possible when the requested
         # move is exactly one of the die rolls (to ensure automated experiments don't run slower)

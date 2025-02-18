@@ -6,7 +6,7 @@ from src.RL_player import RL_player
 import numpy as np 
 from random import randint
 from scipy.special import erf
-from MIni2025.backgammon_mini2025part1.src.RL import BackgammonNet
+from src.RL import BackgammonNet
 
 
   
@@ -40,7 +40,7 @@ def Board_Generator(size=1000):
     print("database bytes size: ", size)
     #save the database
     np.save('database.npy', database, allow_pickle=True) 
-def Board_Generator_RL(size=1000): 
+def Board_Generator_RL(size=1): 
     database = []
     for i in range(size):
         game = Game(
@@ -49,42 +49,39 @@ def Board_Generator_RL(size=1000):
             first_player=Colour(randint(0, 1)),
             time_limit=-1
         )
+        game.run_game(verbose=False)
         new_db = np.array([])
         winner = game.who_won()
         board_history = game.get_game_history()
         lastBoard = board_history[-1]['board']
         log("last board" + str(lastBoard))
-        black_dis_sum = 0 
-        white_dis_sum = 0
-        for loc in lastBoard:
-            if winner == Colour.BLACK:
-                white_dis_sum = loc*abs(lastBoard[loc])
-                #TODO: get the mean and std of the distance sum, for now we will use 7 and 3
-            else #winner == Colour.WHITE:
-                black_dis_sum = loc*abs(24-lastBoard[loc])
-                "0.6-1"
-        if winner == Colour.BLACK:
-            black_dis_sum = 0.6 + 0.4 * (1 + erf((black_dis_sum - mean_black) / (std_black * np.sqrt(2)))) / 2
-            white_dis_sum = 0 + 0.4 * (1 + erf((black_dis_sum - mean_black) / (std_black * np.sqrt(2)))) / 2
-        else:
-            white_dis_sum = 0.6 + 0.4 * (1 + erf((black_dis_sum - mean_black) / (std_black * np.sqrt(2)))) / 2
-            black_dis_sum = 0 + 0.4 * (1 + erf((black_dis_sum - mean_black) / (std_black * np.sqrt(2)))) / 2
-
-
-
-            
-            
-        for Pcolor, score, Hboard in board_history:
-            if winner != Pcolor:
-                score = 0
-                #score(true,Pcolor, lastBoard)
+        dis_sum = 0 
+        #last board[-2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 15, 13]
+        lastBoardLoc = lastBoard[:-4]
+        eat_black= lastBoard[25]
+        eat_white= lastBoard[24]
+        for i, val in enumerate(lastBoardLoc):
+            if winner != Colour.WHITE:
+                dis_sum += abs(i - 24) * abs(val)
             else:
-                score=1  
-
-              
-            stateScoreInfo = {'color': Pcolor, 'RL_Score': score, 'board':Hboard}
-            new_db.append()       
-        database = np.concatenate((database, ))
+                dis_sum += abs(i - (-1)) * abs(val)
+        dis_sum=25* (eat_black+eat_white)+dis_sum
+        
+        log(str(dis_sum))
+        
+            
+            
+        for state in board_history:
+            Pcolor = state['color']
+            Hboard = state['board']
+            if winner.value == Pcolor:
+                score = dis_sum
+            else:
+                score = 0
+            stateScoreInfo = {'color': Pcolor, 'RL_score': score, 'board': Hboard}
+            log(str(stateScoreInfo))
+            new_db = np.append(new_db, stateScoreInfo)
+        database = np.concatenate((database, new_db))
         
     size = database.nbytes
 
@@ -128,7 +125,7 @@ def log(message, file_path="db.txt"):
     print(message)   
 
 def set_database():
-    Board_Generator_RL(size = 5500)
+    Board_Generator_RL(size = 1)#5500
     #get the min and max values of heuristic in the database, the average value of the heuristic, variance, and standard deviation
     database = np.load('database.npy', allow_pickle=True)
     heuristics= [entry['heuristic_score'] for entry in database]
