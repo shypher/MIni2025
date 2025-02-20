@@ -105,13 +105,13 @@ def set_RLdatabase():
     RL_scores = [entry['RL_score'] for entry in database]
 
     # Print RL score statistics
-    """print("Min RL score: ", np.min(all_dist))
+    print("Min RL score: ", np.min(all_dist))
     print("Max RL score: ", np.max(all_dist))
     print("Average RL score: ", np.mean(all_dist))
     print("Variance of RL score: ", np.var(all_dist))
-    print("Standard deviation of RL score: ", np.std(all_dist))"""
+    print("Standard deviation of RL score: ", np.std(all_dist))
     std_all_dist = np.std(all_dist)
-    normalized_RL = [0 if entry['RL_score'] == 0 else 0.6 + 0.4 *(min(1, erf((entry['RL_score'] - 22.72) / (21.99 * 1.414)))) for entry in database]
+    normalized_RL = [0 if entry['RL_score'] == 0 else max(0.6,0.6 + 0.4 *(min(1, erf((entry['RL_score'] - 22.72) / (21.99 * 1.414))))) for entry in database]
     for i, entry in enumerate(database):
         entry['RL_score'] = normalized_RL[i]
 
@@ -121,8 +121,8 @@ def set_RLdatabase():
     
     # Print some random RL-based samples for logging
     RL_database = np.load('RL_database.npy', allow_pickle=True)
-    """for i in range(20):
-        log("Normalized RL score: " + str(RL_database[i]['RL_score']))"""
+    for i in range(20):
+        log("Normalized RL score: " + str(RL_database[i]['RL_score']))
 
     
 
