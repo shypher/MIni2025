@@ -31,7 +31,7 @@ class RL_player(Strategy):
         
             
     def move(self, board, color, dice_roll, make_move, opponents_activity):
-       # self.boardHistory_opp = np.append(board.export_state(),self.boardHistory_opp)
+        #self.boardHistory_opp = np.append(board.export_state(),self.boardHistory_opp)
 
         # Record starting time and compute a time limit (if necessary)
         
@@ -39,9 +39,9 @@ class RL_player(Strategy):
         model = BackgammonNet().to(device)
 
         try:
-            model.load_state_dict(torch.load("RLNN.pth", map_location=device))
+            model.load_state_dict(torch.load("RLNN_new.pth", map_location=device))
             model.eval()
-            print("Model loaded successfully.")
+            #print("Model loaded successfully.")
         except Exception as e:
             print(f"Error loading model: {e}")
 

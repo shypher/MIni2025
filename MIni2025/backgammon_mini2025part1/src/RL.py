@@ -28,13 +28,13 @@ class BackgammonNet(nn.Module):
         x = self.output(x)  # Output layer
         return x  # Final output (heuristic score) 
     @staticmethod
-    def train_network(dataset_path=path, batch_size=256, num_epochs=200, learning_rate=5e-4, input_size=29):  
+    def train_network(dataset_path=path, batch_size=256, num_epochs=50, learning_rate=5e-4, input_size=29):  
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print(f"Training on {device}")
         dataset = np.load(dataset_path, allow_pickle=True)  # Load dataset
         if isinstance(dataset[0], dict):
             X = np.array([np.concatenate([entry['board'], [entry['color']]]) for entry in dataset], dtype=np.float32)  # Combine board and color
-            y = np.array([entry['heuristic_score'] for entry in dataset], dtype=np.float32)  # Heuristic score is the target
+            y = np.array([entry['RL_score'] for entry in dataset], dtype=np.float32)  # Heuristic score is the target
 
         X_tensor = torch.tensor(X, dtype=torch.float32).to(device)  # Features
         y_tensor = torch.tensor(y, dtype=torch.float32).unsqueeze(1).to(device)  
@@ -72,11 +72,11 @@ class BackgammonNet(nn.Module):
                     loss = criterion(val_outputs, val_targets)
                     val_loss += loss.item()
             avg_val_loss = val_loss / len(val_loader)
-            print(f"Epoch {epoch+1}/{num_epochs}, Train Loss: {avg_train_loss:.6f}, Val Loss: {avg_val_loss:.6f}")
+            #print(f"Epoch {epoch+1}/{num_epochs}, Train Loss: {avg_train_loss:.6f}, Val Loss: {avg_val_loss:.6f}")
             model.train()
 
 
-        torch.save(model.state_dict(), "RLNN.pth")
+        torch.save(model.state_dict(), "RLNN_new.pth")
         print("Training complete. Model saved to RLNN.pth")
 
         return model, test_set
