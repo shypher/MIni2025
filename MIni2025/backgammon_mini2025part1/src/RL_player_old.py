@@ -54,8 +54,8 @@ class RL_player_old(Strategy):
         best_move_sequence = None
         move_scores = []
         for simulated_board, move_seq in candidate_moves.items():
-            simulated_board = board.export_state()
-            input_data = np.concatenate([simulated_board, np.array([color.value], dtype=np.float32)])
+            simulated_board = simulated_board.export_state()
+            input_data = np.concatenate([simulated_board, np.array([(color.value+1)%2], dtype=np.float32)])
             input_tensor = torch.tensor(input_data, dtype=torch.float32).unsqueeze(0)
             input_tensor = input_tensor.to(next(model.parameters()).device)
             with torch.no_grad():
