@@ -7,6 +7,7 @@ from src.compare_all_moves_strategy import CompareAllMovesWeightingDistanceAndSi
 from src.game2 import Game
 from src.strategies import MoveRandomPiece
 from src.RL_player import RL_player
+from src.random_comper import CompareAllMovesWeightingDistanceAndSinglesWithEndGame_random, CompareAllMovesSimple_random
 import numpy as np 
 from random import randint
 from scipy.special import erf
@@ -96,7 +97,7 @@ def Board_Generator_RL(size=128):
     return all_dist
 
 def set_RLdatabase():
-    all_dist = Board_Generator_RL(size=128)  # Generates new board states
+    all_dist = Board_Generator_RL(size=10)  # Generates new board states
         
     # Load the RL-based database
     database = np.load('database.npy', allow_pickle=True)
@@ -121,8 +122,7 @@ def set_RLdatabase():
     
     # Print some random RL-based samples for logging
     RL_database = np.load('RL_database.npy', allow_pickle=True)
-    for i in range(20):
-        log("Normalized RL score: " + str(RL_database[i]['RL_score']))
+
 
     
 
@@ -239,6 +239,7 @@ if __name__ == '__main__':
             winner = game.who_won()
             lastBoard = game.get_game_history()
             lastBoard = lastBoard[-1]['board']
+            print(f"last board: {lastBoard}")
             dis_sum = 0 
             lastBoardLoc = lastBoard[:-4]
             eat_black= lastBoard[25]
@@ -248,7 +249,7 @@ if __name__ == '__main__':
             dis_sum = np.sum(distances * np.abs(lastBoardLoc))
             dis_sum=25* (eat_black+eat_white)+dis_sum
             if winner == Colour.WHITE:
-                normalized_score = 0.6 + 0.4 * (min(1, erf((dis_sum - 22.72) / (21.99 * 1.414))))
+                normalized_score = max(0.6,0.6 + 0.4 * (min(1, erf((dis_sum - 22.72) / (21.99 * 1.414)))))
             else:
                 normalized_score = 0
             print(f"Game {_ + 1} winner: {winner}, normalized score: {normalized_score}")

@@ -64,7 +64,12 @@ class RL_player(Strategy):
 
         # Sort moves by score in descending order and select the top 4
         move_scores.sort(reverse=True, key=lambda x: x[0])
-        top_moves = move_scores[:4]
+        best_move_sequence = move_scores[0][1] if move_scores else None
+
+        if best_move_sequence and isinstance(best_move_sequence, list):
+            for move_dict in best_move_sequence:
+                make_move(move_dict['piece_at'], move_dict['die_roll'])
+        """top_moves = move_scores[:4]
         if top_moves:
             scores = [np.exp(score) for score, _ in top_moves]
             total_score = sum(scores)
@@ -74,7 +79,7 @@ class RL_player(Strategy):
 
             if best_move_sequence and isinstance(best_move_sequence, list):
                 for move_dict in best_move_sequence:
-                    make_move(move_dict['piece_at'], move_dict['die_roll'])
+                    make_move(move_dict['piece_at'], move_dict['die_roll'])"""
        # self.boardHistory_my = np.append(board.export_state(),self.boardHistory_my)
     
                     

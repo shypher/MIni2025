@@ -50,9 +50,7 @@ class Game:
     def calculate_heuristic(self, board, colour):
         strategy = CompareAllMovesWeightingDistanceAndSinglesWithEndGame()
         return strategy.evaluate_board(board, colour)
-    def gaussian_normalize(value, mean = 137.0, std=62.3):
-        cdf= 0.5*(1.0+np((value - mean) / (std * np.sqrt(2.0))))
-        return np.clip(cdf, 0, 1)
+
     def run_game(self, verbose=True):
         if verbose:
             log('%s goes first' % self.first_player)
@@ -63,7 +61,7 @@ class Game:
         while True:
             heuristic_score = self.calculate_heuristic(self.board, Colour(i % 2))
             #append the color, heuristic score and board to the board history
-            stateScoreInfo = {'color': Colour(i % 2).value, 'heuristic_score': heuristic_score, 'board': self.board.export_state()}
+            stateScoreInfo = {'color': Colour(i% 2).value, 'heuristic_score': heuristic_score, 'board': self.board.export_state()}
             self.boardHistory = np.append(self.boardHistory, stateScoreInfo)
             if verbose:
                 self.board.print_board()

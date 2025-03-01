@@ -2,33 +2,53 @@
 import numpy as np 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.utils.data import random_split
 import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset
 
 
 path= "c:/Users/shay1/Documents/GitHub/MIni2025/MIni2025/backgammon_mini2025part1/normalized_database.npy"
-class BackgammonNet(nn.Module):
-    
-    def __init__(self, input_size=29):
-        super(BackgammonNet, self).__init__()
+class BackgammonNet(nn.Module):  
+    def init(self, input_size=29):
+        super(BackgammonNet, self).init()
         self.fc1 = nn.Linear(input_size, 40)
+        self.nr1 = nn.BatchNorm1d(40)
         self.relu1 = nn.ReLU()
+        self.dropout1 = nn.Dropout(0.3)
+
         self.fc2 = nn.Linear(40, 40)
+        self.nr2 = nn.BatchNorm1d(40)
         self.relu2 = nn.ReLU()
+        self.dropout2 = nn.Dropout(0.3)
+
+        self.fc3 = nn.Linear(40, 40)
+        self.nr3 = nn.BatchNorm1d(40)
+        self.relu3 = nn.ReLU()
+        self.dropout3 = nn.Dropout(0.3)
+
         self.output = nn.Linear(40, 1)
-        #self.sigmoid = nn.Sigmoid() 
-        #self.softmax = nn.Softmax(dim=1)
-        # Define the forward pass for the network
+
     def forward(self, x):
-        x = self.fc1(x)  # First layer
-        x = self.relu1(x)  # Activation
-        x = self.fc2(x)  # Second layer
-        x = self.relu2(x)  # Activation
-        x = self.output(x)  # Output layer
-        return x  # Final output (heuristic score) 
+        x = self.fc1(x)
+        x = self.nr1(x)
+        x = self.relu1(x)
+        x = self.dropout1(x)
+        x = self.fc2(x)
+        x = self.nr2(x)
+        x = self.relu2(x)
+        x = self.dropout2(x)
+
+        x = self.fc3(x)
+        x = self.nr3(x)
+        x = self.relu3(x)
+        x = self.dropout3(x)
+
+        x = self.output(x)
+        return x  # Final heuristic score
+
     @staticmethod
-    def train_network(dataset_path=path, batch_size=256, num_epochs=50, learning_rate=5e-4, input_size=29):  
+    def train_network(dataset_path=path, batch_size=1024, num_epochs=100, learning_rate=0.0075, input_size=29):  
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print(f"Training on {device}")
         dataset = np.load(dataset_path, allow_pickle=True)  # Load dataset
@@ -49,7 +69,7 @@ class BackgammonNet(nn.Module):
         #dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
         # Create the network and optimizer
         model = BackgammonNet(input_size=input_size).to(device)
-        optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+        optimizer = optim.AdamW(model.parameters(), lr=learning_rate,weight_decay=1e-4)
         criterion = nn.MSELoss()
         model.train()
         for epoch in range(num_epochs):
@@ -72,12 +92,12 @@ class BackgammonNet(nn.Module):
                     loss = criterion(val_outputs, val_targets)
                     val_loss += loss.item()
             avg_val_loss = val_loss / len(val_loader)
-            #print(f"Epoch {epoch+1}/{num_epochs}, Train Loss: {avg_train_loss:.6f}, Val Loss: {avg_val_loss:.6f}")
+            print(f"Epoch {epoch+1}/{num_epochs}, Train Loss: {avg_train_loss:.6f}, Val Loss: {avg_val_loss:.6f}")
             model.train()
 
 
         torch.save(model.state_dict(), "RLNN_new.pth")
-        print("Training complete. Model saved to RLNN.pth")
+        print("Training complete. Model saved to RLNN_new.pth")
 
         return model, test_set
     @staticmethod
