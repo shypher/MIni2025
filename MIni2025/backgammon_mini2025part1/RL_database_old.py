@@ -7,7 +7,7 @@ from src.RL_player import RL_player
 import numpy as np 
 from random import randint
 from scipy.special import erf
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import MinMaxScaler, QuantileTransformer
 from src.RL import BackgammonNet
 
   
@@ -68,10 +68,16 @@ def set_database():
     database = np.load('database.npy', allow_pickle=True)
     scaler = MinMaxScaler(feature_range=(0, 1))
     heuristics= np.array([entry['heuristic_score'] for entry in database], dtype=np.float32).reshape(-1, 1)
+    qt = QuantileTransformer(output_distribution='uniform', random_state=0)
+    scaler = MinMaxScaler(feature_range=(0, 1))
+    normalized_heuristics = scaler.fit_transform(heuristics).flatten()
+
     plt.hist(heuristics, bins=50, alpha=0.5, label="Original Heuristic Distribution")
     plt.legend()
     plt.show()
-    normalized_heuristics = scaler.fit_transform(heuristics).flatten()
+    #normalized_heuristics = scaler.fit_transform(heuristics).flatten()
+    #normalized_heuristics = qt.fit_transform(heuristics).flatten()
+    #normalized_heuristics = np.log1p(normalized_heuristics)
     print("min value of heuristic: ", np.min(heuristics))
     print("max value of heuristic: ", np.max(heuristics))
     print("average value of heuristic: ", np.mean(heuristics))
@@ -101,6 +107,7 @@ def set_database():
     plt.legend()
     plt.show()
     normalized_heuristics_db = np.load('normalized_database.npy', allow_pickle=True)
+    #todo add check if the file is not found
     database = np.load('database.npy', allow_pickle=True)
     
     for i in range(10):

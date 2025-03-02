@@ -10,7 +10,59 @@ from torch.utils.data import DataLoader, Dataset
 
 path= "c:/Users/shay1/Documents/GitHub/MIni2025/MIni2025/backgammon_mini2025part1/normalized_database.npy"
 class BackgammonNet(nn.Module):  
-    def init(self, input_size=29):
+    def __init__(self, input_size=29):
+        super(BackgammonNet, self).__init__()
+        self.fc1 = nn.Linear(input_size, 128)
+        #self.nr1 = nn.BatchNorm1d(40)
+        self.relu1 = nn.ReLU()
+        #self.dropout1 = nn.Dropout(0.1)
+        self.fc2 = nn.Linear(128, 128) 
+        #self.nr2 = nn.BatchNorm1d(40)
+        self.relu2 = nn.ReLU()
+        #self.dropout2 = nn.Dropout(0.1)
+        self.fc3 = nn.Linear(128, 128)
+        #self.nr3 = nn.BatchNorm1d(40)
+        self.relu3 = nn.ReLU()
+        #self.dropout3 = nn.Dropout(0.1)
+        self.fc4 = nn.Linear(128, 64)
+        #self.nr4 = nn.BatchNorm1d(40)
+        self.relu4 = nn.ReLU()
+        self.fc5 = nn.Linear(64, 64)
+        self.relu5 = nn.ReLU()
+
+        self.fc6 = nn.Linear(64, 32)
+
+        #self.dropout4 = nn.Dropout(0.1)
+        #self.fc5 = nn.Linear(40, 40)
+        #self.nr5 = nn.BatchNorm1d(40)
+        #self.relu5 = nn.ReLU()
+        self.output = nn.Linear(32, 1)
+        #self.dropout5 = nn.Dropout(0.1)
+        self.sigmoid = nn.Sigmoid()    
+        self.elu = nn.ELU()
+
+
+    def forward(self, x):
+        #x = x * 100  # הגדלת הערכים
+
+        x = self.fc1(x)
+        x = self.elu(x)
+        x = self.fc2(x)
+        x = self.elu(x)
+        x = self.fc3(x)
+        x = self.elu(x)
+        x = self.fc4(x)
+        x = self.elu(x)
+        x = self.fc5(x)
+        x = self.elu(x)
+        x = self.fc6(x)
+        x = self.elu(x)
+        x = self.output(x)
+        #x= x/100
+        #x = torch.tanh(x)  # ערכים בין -1 ל-1
+        #x = (x + 1) / 2  # שינוי לטווח [0,1]
+        return self.sigmoid(x)  # Final heuristic score
+    """def init(self, input_size=29):
         super(BackgammonNet, self).init()
         self.fc1 = nn.Linear(input_size, 40)
         self.nr1 = nn.BatchNorm1d(40)
@@ -45,10 +97,10 @@ class BackgammonNet(nn.Module):
         x = self.dropout3(x)
 
         x = self.output(x)
-        return x  # Final heuristic score
+        return x  # Final heuristic score"""
 
     @staticmethod
-    def train_network(dataset_path=path, batch_size=1024, num_epochs=100, learning_rate=0.0075, input_size=29):  
+    def train_network(dataset_path=path, batch_size=1024, num_epochs=200, learning_rate=5e-4, input_size=29):  
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print(f"Training on {device}")
         dataset = np.load(dataset_path, allow_pickle=True)  # Load dataset
@@ -96,8 +148,8 @@ class BackgammonNet(nn.Module):
             model.train()
 
 
-        torch.save(model.state_dict(), "RLNN_new.pth")
-        print("Training complete. Model saved to RLNN_new.pth")
+        torch.save(model.state_dict(), "RLNN_lvl2.pth")
+        print("Training complete. Model saved to RLNN_lvl2.pth")
 
         return model, test_set
     @staticmethod

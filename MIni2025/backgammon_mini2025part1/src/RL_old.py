@@ -14,57 +14,110 @@ path= "c:/Users/shay1/Documents/GitHub/MIni2025/MIni2025/backgammon_mini2025part
 class BackgammonNet(nn.Module):  
     def __init__(self, input_size=29):
         super(BackgammonNet, self).__init__()
-        self.fc1 = nn.Linear(input_size, 40)
+        self.fc1 = nn.Linear(input_size, 128)
         #self.nr1 = nn.BatchNorm1d(40)
         self.relu1 = nn.ReLU()
         #self.dropout1 = nn.Dropout(0.1)
-        self.fc2 = nn.Linear(40, 80)
-        #self.nr2 = nn.BatchNorm1d(80)
+        self.fc2 = nn.Linear(128, 128) 
+        #self.nr2 = nn.BatchNorm1d(40)
         self.relu2 = nn.ReLU()
         #self.dropout2 = nn.Dropout(0.1)
-        self.fc3 = nn.Linear(80, 80)
-       # self.nr3 = nn.BatchNorm1d(80)
+        self.fc3 = nn.Linear(128, 128)
+        #self.nr3 = nn.BatchNorm1d(40)
         self.relu3 = nn.ReLU()
-       # self.dropout3 = nn.Dropout(0.1)
-        self.fc4 = nn.Linear(80, 80)
-       # self.nr4 = nn.BatchNorm1d(40)
+        #self.dropout3 = nn.Dropout(0.1)
+        self.fc4 = nn.Linear(128, 64)
+        #self.nr4 = nn.BatchNorm1d(40)
         self.relu4 = nn.ReLU()
-       # self.dropout4 = nn.Dropout(0.1)
-        self.fc5 = nn.Linear(80, 40)
-       # self.nr5 = nn.BatchNorm1d(40)
+        self.fc5 = nn.Linear(64, 64)
         self.relu5 = nn.ReLU()
-        self.output = nn.Linear(40, 1)
+
+        self.fc6 = nn.Linear(64, 32)
+
+        #self.dropout4 = nn.Dropout(0.1)
+        #self.fc5 = nn.Linear(40, 40)
+        #self.nr5 = nn.BatchNorm1d(40)
+        #self.relu5 = nn.ReLU()
+        self.output = nn.Linear(32, 1)
         #self.dropout5 = nn.Dropout(0.1)
-        self.sigmoid = nn.Sigmoid()
+        self.sigmoid = nn.Sigmoid()    
+        self.elu = nn.ELU()
+
 
     def forward(self, x):
-        
+        """  
         x = self.fc1(x)
-       # x = self.nr1(x)
+        #x = self.nr1(x)lk
         x = self.relu1(x)
-       # x = self.dropout1(x)
+        #x = self.dropout1(x)
         x = self.fc2(x)
-      #  x = self.nr2(x)
+        #x = self.nr2(x)
         x = self.relu2(x)
-       # x = self.dropout2(x)
-        x = self.fc3(x)
-       # x = self.nr3(x)
-        x = self.relu3(x)
+        #x = self.dropout2(x)
+        #x = self.fc3(x)
+        #x = self.nr3(x)
+        #x = self.relu3(x)
        # x = self.dropout3(x)
+        #x = self.fc4(x)
+        #x = self.nr4(x)
+        #x = self.relu4(x)
+        #x = self.dropout4(x)
+        #x = self.fc5(x)
+        #x = self.nr5(x)
+        #x = self.relu5(x)
+        #x = self.dropout5(x)"""
+        #x = x * 100  # הגדלת הערכים
+
+        x = self.fc1(x)
+        x = self.elu(x)
+        x = self.fc2(x)
+        x = self.elu(x)
+        x = self.fc3(x)
+        x = self.elu(x)
         x = self.fc4(x)
-       # x = self.nr4(x)
-        x = self.relu4(x)
-       # x = self.dropout4(x)
+        x = self.elu(x)
         x = self.fc5(x)
-       # x = self.nr5(x)
-        x = self.relu5(x)
-       # x = self.dropout5(x)
-
+        x = self.elu(x)
+        x = self.fc6(x)
+        x = self.elu(x)
         x = self.output(x)
-        return x #self.sigmoid(x)  # Final heuristic score
+        #x= x/100
+        #x = torch.tanh(x)  # ערכים בין -1 ל-1
+        #x = (x + 1) / 2  # שינוי לטווח [0,1]
+        return self.sigmoid(x)  # Final heuristic score
+    """
+        def __init__(self, input_size=29):
+        super(BackgammonNet, self).__init__()
+        
+        # Define layers with more depth and better activation functions
+        self.fc1 = nn.Linear(input_size, 128)
+        self.fc2 = nn.Linear(128, 128)
+        self.fc3 = nn.Linear(128, 128)
+        self.fc4 = nn.Linear(128, 64)
+        self.fc5 = nn.Linear(64, 64)
+        self.fc6 = nn.Linear(64, 32)
+        self.output = nn.Linear(32, 1)
 
+        # Activation functions
+        self.elu = nn.ELU()
+        def forward(self, x):
+        x = self.fc1(x)
+        x = self.elu(x)
+        x = self.fc2(x)
+        x = self.elu(x)
+        x = self.fc3(x)
+        x = self.elu(x)
+        x = self.fc4(x)
+        x = self.elu(x)
+        x = self.fc5(x)
+        x = self.elu(x)
+        x = self.fc6(x)
+        x = self.elu(x)
+        x = self.output(x)
+        return torch.sigmoid(x)
+    """
     @staticmethod
-    def train_network(dataset_path=path, batch_size=512, num_epochs= 150, learning_rate=5e-4, input_size=29):  
+    def train_network(dataset_path=path, batch_size=1024, num_epochs= 250, learning_rate=5e-4, input_size=29):  
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print(f"Training on {device}")
         dataset = np.load(dataset_path, allow_pickle=True)  # Load dataset

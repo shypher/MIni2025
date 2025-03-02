@@ -1,17 +1,19 @@
 import os
 import csv
 import matplotlib.pyplot as plt
+from sklearn.preprocessing import MinMaxScaler, QuantileTransformer
 import torch
 from src.colour import Colour
 from src.compare_all_moves_strategy import CompareAllMovesWeightingDistanceAndSinglesWithEndGame
 from src.game2 import Game
 from src.strategies import MoveRandomPiece
-from src.RL_player import RL_player
+
 from src.random_comper import CompareAllMovesWeightingDistanceAndSinglesWithEndGame_random, CompareAllMovesSimple_random
 import numpy as np 
 from random import randint
 from scipy.special import erf
 from src.RL import BackgammonNet
+from src.RL_player import RL_player, RL_player_random
 
 
 
@@ -51,8 +53,8 @@ def Board_Generator_RL(size=128):
     all_dist=[]
     for i in range(size):
         game = Game(
-            white_strategy= RL_player(),
-            black_strategy= RL_player(),
+            white_strategy= RL_player_random(),
+            black_strategy= RL_player_random(),
             first_player=Colour(randint(0, 1)),
             time_limit=-1
         )
@@ -62,7 +64,6 @@ def Board_Generator_RL(size=128):
         board_history = game.get_game_history()
         lastBoard = board_history[-1]['board']
         dis_sum = 0 
-        #last board[-2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 15, 13]
         lastBoardLoc = lastBoard[:-4]
         eat_black= lastBoard[25]
         eat_white= lastBoard[24]
@@ -71,18 +72,19 @@ def Board_Generator_RL(size=128):
         dis_sum = np.sum(distances * np.abs(lastBoardLoc))
         dis_sum=25* (eat_black+eat_white)+dis_sum
         
-        
+        max_dist = 105
             
-            
+        normalized_distance = min(dis_sum / max_dist, 1.0)    
         for state in board_history:
             Pcolor = state['color']
             Hboard = state['board']
             if winner.value == Pcolor:
-                score = dis_sum
+                score = 0.6 + 0.4 * (normalized_distance)
             else:
-                score = 0
+                score = 0.4 * (1-normalized_distance)
             stateScoreInfo = {'color': Pcolor, 'RL_score': score, 'board': Hboard}
             new_db.append(stateScoreInfo)
+            #log(f"color:{Pcolor}, board{lastBoard}\n score:{score}")
         database.extend(new_db)
         all_dist = np.append(all_dist, dis_sum)
         print("game ", i+1, " done")
@@ -94,10 +96,11 @@ def Board_Generator_RL(size=128):
     #print("database bytes size: ", size)
     #save the database
     np.save('database.npy', database, allow_pickle=True)
+    
     return all_dist
 
 def set_RLdatabase():
-    all_dist = Board_Generator_RL(size=10)  # Generates new board states
+    all_dist = Board_Generator_RL(size=100)  # Generates new board states
         
     # Load the RL-based database
     database = np.load('database.npy', allow_pickle=True)
@@ -111,15 +114,18 @@ def set_RLdatabase():
     print("Average RL score: ", np.mean(all_dist))
     print("Variance of RL score: ", np.var(all_dist))
     print("Standard deviation of RL score: ", np.std(all_dist))
-    std_all_dist = np.std(all_dist)
-    normalized_RL = [0 if entry['RL_score'] == 0 else max(0.6,0.6 + 0.4 *(min(1, erf((entry['RL_score'] - 22.72) / (21.99 * 1.414))))) for entry in database]
-    for i, entry in enumerate(database):
-        entry['RL_score'] = normalized_RL[i]
+    #std_all_dist = np.std(all_dist)
+    #scaler = MinMaxScaler(feature_range=(0, 1))
+    #heuristics= np.array([entry['RL_score'] for entry in database], dtype=np.float32).reshape(-1, 1)
+    #qt = QuantileTransformer(output_distribution='uniform', random_state=0)
+    #scaler = MinMaxScaler(feature_range=(0, 1))
+    #normalized_RL = [0 if entry['RL_score'] == 0 else max(0.6,0.6 + 0.4 *(min(1, erf((entry['RL_score'] - 22.72) / (21.99 * 1.414))))) for entry in database]
+    #for i, entry in enumerate(database):
+        #entry['RL_score'] = normalized_RL[i]
 
     # Shuffle the database to introduce randomness
     np.random.shuffle(database)
     np.save('RL_database.npy', database, allow_pickle=True)
-    
     # Print some random RL-based samples for logging
     RL_database = np.load('RL_database.npy', allow_pickle=True)
 
@@ -221,6 +227,7 @@ if __name__ == '__main__':
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     RL = BackgammonNet().to(device)
     training_step = load_training_step()
+    
     while os.path.getsize(stoper_path) != 0:
         print("Run: ", training_step)
         set_RLdatabase()
@@ -248,10 +255,13 @@ if __name__ == '__main__':
             distances = np.abs(indices - (24 if winner != Colour.WHITE else -1))
             dis_sum = np.sum(distances * np.abs(lastBoardLoc))
             dis_sum=25* (eat_black+eat_white)+dis_sum
+            max_dist = 105
+            
+            normalized_distance = min(dis_sum / max_dist, 1.0)   
             if winner == Colour.WHITE:
-                normalized_score = max(0.6,0.6 + 0.4 * (min(1, erf((dis_sum - 22.72) / (21.99 * 1.414)))))
+                normalized_score =  0.6 + 0.4 * (1 - normalized_distance)
             else:
-                normalized_score = 0
+                normalized_score = 0.4 * (normalized_distance)
             print(f"Game {_ + 1} winner: {winner}, normalized score: {normalized_score}")
             total_score += normalized_score
         average_score = total_score / num_games

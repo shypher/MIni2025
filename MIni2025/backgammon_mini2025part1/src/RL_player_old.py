@@ -64,7 +64,7 @@ class RL_player_old(Strategy):
 
         # Sort moves by score in descending order and select the top 4
         move_scores.sort(reverse=True, key=lambda x: x[0])
-        top_moves = move_scores[:4]
+        top_moves = move_scores[:1]
         if top_moves:
             scores = [np.exp(score) for score, _ in top_moves]
             total_score = sum(scores)
