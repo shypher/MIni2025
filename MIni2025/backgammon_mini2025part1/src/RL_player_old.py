@@ -39,7 +39,7 @@ class RL_player_old(Strategy):
         model = BackgammonNet().to(device)
 
         try:
-            model.load_state_dict(torch.load("RLNN_old.pth", map_location=device))
+            model.load_state_dict(torch.load("RLNN_finalLvlA.pth", map_location=device))
             model.eval()
             #print("Model loaded successfully.")
         except Exception as e:

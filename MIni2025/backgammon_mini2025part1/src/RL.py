@@ -15,23 +15,24 @@ class BackgammonNet(nn.Module):
         self.fc1 = nn.Linear(input_size, 128)
         #self.nr1 = nn.BatchNorm1d(40)
         self.relu1 = nn.ReLU()
-        #self.dropout1 = nn.Dropout(0.1)
+        self.dropout1 = nn.Dropout(0.1)
         self.fc2 = nn.Linear(128, 128) 
         #self.nr2 = nn.BatchNorm1d(40)
         self.relu2 = nn.ReLU()
-        #self.dropout2 = nn.Dropout(0.1)
+        self.dropout2 = nn.Dropout(0.1)
         self.fc3 = nn.Linear(128, 128)
         #self.nr3 = nn.BatchNorm1d(40)
         self.relu3 = nn.ReLU()
-        #self.dropout3 = nn.Dropout(0.1)
+        self.dropout3 = nn.Dropout(0.1)
         self.fc4 = nn.Linear(128, 64)
         #self.nr4 = nn.BatchNorm1d(40)
         self.relu4 = nn.ReLU()
+        self.dropout4 = nn.Dropout(0.1)
         self.fc5 = nn.Linear(64, 64)
         self.relu5 = nn.ReLU()
-
+        self.dropout5 = nn.Dropout(0.1)
         self.fc6 = nn.Linear(64, 32)
-
+        self.dropout6 = nn.Dropout(0.1)
         #self.dropout4 = nn.Dropout(0.1)
         #self.fc5 = nn.Linear(40, 40)
         #self.nr5 = nn.BatchNorm1d(40)
@@ -47,16 +48,22 @@ class BackgammonNet(nn.Module):
 
         x = self.fc1(x)
         x = self.elu(x)
+        x = self.dropout1(x) 
         x = self.fc2(x)
         x = self.elu(x)
+        x = self.dropout2(x) 
         x = self.fc3(x)
         x = self.elu(x)
+        x = self.dropout3(x) 
         x = self.fc4(x)
         x = self.elu(x)
+        x = self.dropout4(x) 
         x = self.fc5(x)
         x = self.elu(x)
+        x = self.dropout5(x) 
         x = self.fc6(x)
         x = self.elu(x)
+        x = self.dropout6(x) 
         x = self.output(x)
         #x= x/100
         #x = torch.tanh(x)  # ערכים בין -1 ל-1
@@ -100,7 +107,7 @@ class BackgammonNet(nn.Module):
         return x  # Final heuristic score"""
 
     @staticmethod
-    def train_network(dataset_path=path, batch_size=1024, num_epochs=200, learning_rate=5e-4, input_size=29):  
+    def train_network(dataset_path=path, batch_size=1024, num_epochs=2000, learning_rate=2e-4, input_size=29):  
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print(f"Training on {device}")
         dataset = np.load(dataset_path, allow_pickle=True)  # Load dataset
@@ -124,6 +131,7 @@ class BackgammonNet(nn.Module):
         optimizer = optim.AdamW(model.parameters(), lr=learning_rate,weight_decay=1e-4)
         criterion = nn.MSELoss()
         model.train()
+        
         for epoch in range(num_epochs):
             epoch_loss = 0.0
             for inputs, targets in train_loader:
