@@ -131,8 +131,8 @@ class BackgammonNet(nn.Module):
         optimizer = optim.AdamW(model.parameters(), lr=learning_rate,weight_decay=1e-4)
         criterion = nn.MSELoss()
         model.train()
-        
         for epoch in range(num_epochs):
+            
             epoch_loss = 0.0
             for inputs, targets in train_loader:
                 inputs, targets = inputs.to(device), targets.to(device)
@@ -152,7 +152,8 @@ class BackgammonNet(nn.Module):
                     loss = criterion(val_outputs, val_targets)
                     val_loss += loss.item()
             avg_val_loss = val_loss / len(val_loader)
-            print(f"Epoch {epoch+1}/{num_epochs}, Train Loss: {avg_train_loss:.6f}, Val Loss: {avg_val_loss:.6f}")
+            if(epoch+1==num_epochs):
+                print(f"Epoch {epoch+1}/{num_epochs}, Train Loss: {avg_train_loss:.6f}, Val Loss: {avg_val_loss:.6f}")
             model.train()
 
 

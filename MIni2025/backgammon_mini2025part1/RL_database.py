@@ -17,10 +17,78 @@ from src.RL import BackgammonNet
 from src.RL_player import RL_player, RL_player_new_model, RL_player_random
 
 def Board_Generator_game(index):
-    if (index%2==0):
+    if (index%4==0):
         game = Game(
             white_strategy= RL_player_random(),
             black_strategy= RL_player_random(),
+            first_player=Colour(randint(0, 1)),
+            time_limit=-1
+        )
+        game.run_game(verbose=False)
+        winner = game.who_won()
+        board_history = game.get_game_history()
+        lastBoard = board_history[-1]['board']
+        dis_sum = 0
+        lastBoardLoc = lastBoard[:-4]
+        eat_black = lastBoard[25]
+        eat_white = lastBoard[24]
+        indices = np.arange(len(lastBoardLoc))
+        distances = np.abs(indices - (24 if winner != Colour.WHITE else -1))
+        dis_sum = np.sum(distances * np.abs(lastBoardLoc))
+        dis_sum = 25 * (eat_black + eat_white) + dis_sum
+        max_dist = 105
+
+        normalized_distance = min(dis_sum / max_dist, 1.0)
+        new_db = []
+        for state in board_history:
+            Pcolor = state['color']
+            Hboard = state['board']
+            if winner.value == Pcolor:
+                score = 0.6 + 0.4 * (normalized_distance)
+            else:
+                score = 0.3 * (1 - normalized_distance)
+            stateScoreInfo = {'color': Pcolor, 'RL_score': score, 'board': Hboard}
+            new_db.append(stateScoreInfo)
+
+        return new_db, dis_sum
+    elif(index%4==1):
+        game = Game(
+            white_strategy= CompareAllMovesWeightingDistanceAndSinglesWithEndGame_random(),
+            black_strategy= RL_player_random() ,
+            first_player=Colour(randint(0, 1)),
+            time_limit=-1
+        )
+        game.run_game(verbose=False)
+        winner = game.who_won()
+        board_history = game.get_game_history()
+        lastBoard = board_history[-1]['board']
+        dis_sum = 0
+        lastBoardLoc = lastBoard[:-4]
+        eat_black = lastBoard[25]
+        eat_white = lastBoard[24]
+        indices = np.arange(len(lastBoardLoc))
+        distances = np.abs(indices - (24 if winner != Colour.WHITE else -1))
+        dis_sum = np.sum(distances * np.abs(lastBoardLoc))
+        dis_sum = 25 * (eat_black + eat_white) + dis_sum
+        max_dist = 105
+
+        normalized_distance = min(dis_sum / max_dist, 1.0)
+        new_db = []
+        for state in board_history:
+            Pcolor = state['color']
+            Hboard = state['board']
+            if winner.value == Pcolor:
+                score = 0.6 + 0.4 * (normalized_distance)
+            else:
+                score = 0.3 * (1 - normalized_distance)
+            stateScoreInfo = {'color': Pcolor, 'RL_score': score, 'board': Hboard}
+            new_db.append(stateScoreInfo)
+
+        return new_db, dis_sum
+    elif(index%4==2):
+        game = Game(
+            white_strategy= RL_player_random(),
+            black_strategy= CompareAllMovesWeightingDistanceAndSinglesWithEndGame_random() ,
             first_player=Colour(randint(0, 1)),
             time_limit=-1
         )
@@ -251,18 +319,32 @@ def evaluate_against_old_model(num_games=10):
 
     with tqdm(total=num_games, desc="Evaluating Models", position=0, leave=True) as pbar:
         for _ in range(num_games):
-            game = Game(
-                white_strategy=RL_player(),
-                black_strategy=RL_player_new_model(),
-                first_player=Colour(randint(0, 1)),
-                time_limit=-1
-            )
-            game.run_game(verbose=False)
-            if game.who_won() == Colour.WHITE:
-                new_wins += 1
+            if(_%2 ==0):
+                game = Game(
+                    white_strategy=RL_player(),
+                    black_strategy=RL_player_new_model(),
+                    first_player=Colour(randint(0, 1)),
+                    time_limit=-1
+                )
+                game.run_game(verbose=False)
+                if game.who_won() == Colour.BLACK:
+                    new_wins += 1
+                else:
+                    old_wins += 1
+                pbar.update(1)
             else:
-                old_wins += 1
-            pbar.update(1)
+                game = Game(
+                    white_strategy=RL_player_new_model(),
+                    black_strategy=RL_player(),
+                    first_player=Colour(randint(0, 1)),
+                    time_limit=-1
+                )
+                game.run_game(verbose=False)
+                if game.who_won() == Colour.WHITE:
+                    new_wins += 1
+                else:
+                    old_wins += 1
+                pbar.update(1)
 
     print(f"\nResults: New Model {new_wins} - {old_wins} Old Model")
     return new_wins, old_wins 
@@ -285,34 +367,64 @@ if __name__ == '__main__':
         total_score = 0
         num_games = 10
         for _ in range(num_games):
-            game = Game(
-                white_strategy= RL_player(),
-                black_strategy= CompareAllMovesWeightingDistanceAndSinglesWithEndGame(),
-                first_player=Colour(randint(0, 1)),
-                time_limit=-1
-            )
-            game.run_game(verbose=False)          
-            winner = game.who_won()
-            lastBoard = game.get_game_history()
-            lastBoard = lastBoard[-1]['board']
-            print(f"last board: {lastBoard}")
-            dis_sum = 0 
-            lastBoardLoc = lastBoard[:-4]
-            eat_black= lastBoard[25]
-            eat_white= lastBoard[24]
-            indices = np.arange(len(lastBoardLoc))
-            distances = np.abs(indices - (24 if winner != Colour.WHITE else -1))
-            dis_sum = np.sum(distances * np.abs(lastBoardLoc))
-            dis_sum=25* (eat_black+eat_white)+dis_sum
-            max_dist = 105
-            
-            normalized_distance = min(dis_sum / max_dist, 1.0)   
-            if winner == Colour.WHITE:
-                normalized_score =  0.6 + 0.4 * (normalized_distance)
+            if(_%2==0):
+                game = Game(
+                    white_strategy= RL_player(),
+                    black_strategy= CompareAllMovesWeightingDistanceAndSinglesWithEndGame(),
+                    first_player=Colour(randint(0, 1)),
+                    time_limit=-1
+                )
+                game.run_game(verbose=False)          
+                winner = game.who_won()
+                lastBoard = game.get_game_history()
+                lastBoard = lastBoard[-1]['board']
+                print(f"last board: {lastBoard}")
+                dis_sum = 0 
+                lastBoardLoc = lastBoard[:-4]
+                eat_black= lastBoard[25]
+                eat_white= lastBoard[24]
+                indices = np.arange(len(lastBoardLoc))
+                distances = np.abs(indices - (24 if winner != Colour.WHITE else -1))
+                dis_sum = np.sum(distances * np.abs(lastBoardLoc))
+                dis_sum=25* (eat_black+eat_white)+dis_sum
+                max_dist = 105
+                
+                normalized_distance = min(dis_sum / max_dist, 1.0)   
+                if winner == Colour.WHITE:
+                    normalized_score =  0.6 + 0.4 * (normalized_distance)
+                else:
+                    normalized_score = 0.4 * (1 - normalized_distance)
+                print(f"Game {_ + 1} winner: {winner}, normalized score: {normalized_score}")
+                total_score += normalized_score
             else:
-                normalized_score = 0.4 * (1 - normalized_distance)
-            print(f"Game {_ + 1} winner: {winner}, normalized score: {normalized_score}")
-            total_score += normalized_score
+                game = Game(
+                    white_strategy= CompareAllMovesWeightingDistanceAndSinglesWithEndGame(),
+                    black_strategy= RL_player(),
+                    first_player=Colour(randint(0, 1)),
+                    time_limit=-1
+                )
+                game.run_game(verbose=False)          
+                winner = game.who_won()
+                lastBoard = game.get_game_history()
+                lastBoard = lastBoard[-1]['board']
+                print(f"last board: {lastBoard}")
+                dis_sum = 0 
+                lastBoardLoc = lastBoard[:-4]
+                eat_black= lastBoard[25]
+                eat_white= lastBoard[24]
+                indices = np.arange(len(lastBoardLoc))
+                distances = np.abs(indices - (24 if winner != Colour.WHITE else -1))
+                dis_sum = np.sum(distances * np.abs(lastBoardLoc))
+                dis_sum=25* (eat_black+eat_white)+dis_sum
+                max_dist = 105
+                
+                normalized_distance = min(dis_sum / max_dist, 1.0)   
+                if winner == Colour.BLACK:
+                    normalized_score =  0.6 + 0.4 * (normalized_distance)
+                else:
+                    normalized_score = 0.4 * (1 - normalized_distance)
+                print(f"Game {_ + 1} winner: {winner}, normalized score: {normalized_score}")
+                total_score += normalized_score
         average_score = total_score / num_games
         save_training_result(training_step, average_score)
         training_step += 1
