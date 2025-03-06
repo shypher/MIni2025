@@ -37,14 +37,8 @@ class RL_player(Strategy):
         
             
     def move(self, board, color, dice_roll, make_move, opponents_activity):
-        #self.boardHistory_opp = np.append(board.export_state(),self.boardHistory_opp)
-
-        # Record starting time and compute a time limit (if necessary)
-        
         device = self.device
         model = self.model
-        # Assume there is a function that returns all legal move sequences given board, color, dice_roll.
-        # Each candidate is (for example) a list of moves, where each move is stored as a dict.
         candidate_moves = self.get_all_possible_moves(board, color, dice_roll)
         if not candidate_moves:
             return
@@ -66,21 +60,7 @@ class RL_player(Strategy):
 
         if best_move_sequence and isinstance(best_move_sequence, list):
             for move_dict in best_move_sequence:
-                make_move(move_dict['piece_at'], move_dict['die_roll'])
-        """top_moves = move_scores[:4]
-        if top_moves:
-            scores = [np.exp(score) for score, _ in top_moves]
-            total_score = sum(scores)
-            probabilities = [score / total_score for score in scores]
-            best_move_sequence = random.choices([move_seq for _, move_seq in top_moves], weights=probabilities, k=1)[0]
-            
-
-            if best_move_sequence and isinstance(best_move_sequence, list):
-                for move_dict in best_move_sequence:
-                    make_move(move_dict['piece_at'], move_dict['die_roll'])"""
-       # self.boardHistory_my = np.append(board.export_state(),self.boardHistory_my)
-    
-                    
+                make_move(move_dict['piece_at'], move_dict['die_roll'])  
         
                 
     def get_all_possible_moves(self, board, color, dice_roll):
@@ -120,16 +100,9 @@ class RL_player_random(Strategy):
             self.model.eval()
         except Exception as e:
             print(f"Error loading model: {e}")
-    def move(self, board, color, dice_roll, make_move, opponents_activity):
-        #self.boardHistory_opp = np.append(board.export_state(),self.boardHistory_opp)
-
-        # Record starting time and compute a time limit (if necessary)
-        
+    def move(self, board, color, dice_roll, make_move, opponents_activity):    
         device = self.device
         model = self.model
-
-        # Assume there is a function that returns all legal move sequences given board, color, dice_roll.
-        # Each candidate is (for example) a list of moves, where each move is stored as a dict.
         candidate_moves = self.get_all_possible_moves(board, color, dice_roll)
         if not candidate_moves:
             return
@@ -147,7 +120,7 @@ class RL_player_random(Strategy):
 
         # Sort moves by score in descending order and select the top 4
         move_scores.sort(reverse=True, key=lambda x: x[0])
-        top_moves = move_scores[:6]
+        top_moves = move_scores[:8]
         if top_moves:
             scores = [np.exp(score) for score, _ in top_moves]
             total_score = sum(scores)
@@ -199,22 +172,14 @@ class RL_player_new_model(Strategy):
             print(f"Error loading model: {e}")
             
     def move(self, board, color, dice_roll, make_move, opponents_activity):
-        #self.boardHistory_opp = np.append(board.export_state(),self.boardHistory_opp)
-
-        # Record starting time and compute a time limit (if necessary)
-        
         device = self.device
         model = BackgammonNet().to(device)
 
         try:
             model.load_state_dict(torch.load("RLNN_lvl2.pth", map_location=device))
             model.eval()
-            #print("Model loaded successfully.")
         except Exception as e:
             print(f"Error loading model: {e}")
-
-        # Assume there is a function that returns all legal move sequences given board, color, dice_roll.
-        # Each candidate is (for example) a list of moves, where each move is stored as a dict.
         candidate_moves = self.get_all_possible_moves(board, color, dice_roll)
         if not candidate_moves:
             return
@@ -237,20 +202,7 @@ class RL_player_new_model(Strategy):
         if best_move_sequence and isinstance(best_move_sequence, list):
             for move_dict in best_move_sequence:
                 make_move(move_dict['piece_at'], move_dict['die_roll'])
-        """top_moves = move_scores[:4]
-        if top_moves:
-            scores = [np.exp(score) for score, _ in top_moves]
-            total_score = sum(scores)
-            probabilities = [score / total_score for score in scores]
-            best_move_sequence = random.choices([move_seq for _, move_seq in top_moves], weights=probabilities, k=1)[0]
-            
 
-            if best_move_sequence and isinstance(best_move_sequence, list):
-                for move_dict in best_move_sequence:
-                    make_move(move_dict['piece_at'], move_dict['die_roll'])"""
-       # self.boardHistory_my = np.append(board.export_state(),self.boardHistory_my)
-    
-                    
         
                 
     def get_all_possible_moves(self, board, color, dice_roll):

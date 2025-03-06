@@ -27,14 +27,7 @@ class RLlvlA(Strategy):
         return "shimy"
     def __init__(self):
         self.saved_tree = None
-        
-
-
- 
-    def move(self, board, color, dice_roll, make_move, opponents_activity):
-
-        # Record starting time and compute a time limit (if necessary)
-        
+    def move(self, board, color, dice_roll, make_move, opponents_activity):        
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         model = BackgammonNet().to(device)
 
@@ -44,9 +37,6 @@ class RLlvlA(Strategy):
             print("Model loaded successfully.")
         except Exception as e:
             print(f"Error loading model: {e}")
-
-        # Assume there is a function that returns all legal move sequences given board, color, dice_roll.
-        # Each candidate is (for example) a list of moves, where each move is stored as a dict.
         candidate_moves = self.get_all_possible_moves(board, color, dice_roll)
         if not candidate_moves:
             return

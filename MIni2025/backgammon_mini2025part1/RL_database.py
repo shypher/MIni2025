@@ -44,7 +44,7 @@ def Board_Generator_game(index):
             Pcolor = state['color']
             Hboard = state['board']
             if winner.value == Pcolor:
-                score = 0.6 + 0.4 * (normalized_distance)
+                score = 0.7 + 0.3 * (normalized_distance)
             else:
                 score = 0.3 * (1 - normalized_distance)
             stateScoreInfo = {'color': Pcolor, 'RL_score': score, 'board': Hboard}
@@ -78,7 +78,7 @@ def Board_Generator_game(index):
             Pcolor = state['color']
             Hboard = state['board']
             if winner.value == Pcolor:
-                score = 0.6 + 0.4 * (normalized_distance)
+                score = 0.7 + 0.3 * (normalized_distance)
             else:
                 score = 0.3 * (1 - normalized_distance)
             stateScoreInfo = {'color': Pcolor, 'RL_score': score, 'board': Hboard}
@@ -112,7 +112,7 @@ def Board_Generator_game(index):
             Pcolor = state['color']
             Hboard = state['board']
             if winner.value == Pcolor:
-                score = 0.6 + 0.4 * (normalized_distance)
+                score = 0.7 + 0.3 * (normalized_distance)
             else:
                 score = 0.3 * (1 - normalized_distance)
             stateScoreInfo = {'color': Pcolor, 'RL_score': score, 'board': Hboard}
@@ -146,7 +146,7 @@ def Board_Generator_game(index):
             Pcolor = state['color']
             Hboard = state['board']
             if winner.value == Pcolor:
-                score = 0.6 + 0.4 * (normalized_distance)
+                score = 0.7 + 0.3 * (normalized_distance)
             else:
                 score = 0.3 * (1 - normalized_distance)
             stateScoreInfo = {'color': Pcolor, 'RL_score': score, 'board': Hboard}
@@ -170,89 +170,23 @@ def Board_Generator_RL(size=128):
     progress_bar.close()
     print("\n Board Generation Completed!")
     np.save('database.npy', database, allow_pickle=True)   
-    """database = []
-    all_dist=[]
-    for i in range(size):
-        game = Game(
-            white_strategy= RL_player_random(),
-            black_strategy= RL_player_random(),
-            first_player=Colour(randint(0, 1)),
-            time_limit=-1
-        )
-        game.run_game(verbose=False)
-        new_db = []
-        winner = game.who_won()
-        board_history = game.get_game_history()
-        lastBoard = board_history[-1]['board']
-        dis_sum = 0 
-        lastBoardLoc = lastBoard[:-4]
-        eat_black= lastBoard[25]
-        eat_white= lastBoard[24]
-        indices = np.arange(len(lastBoardLoc))
-        distances = np.abs(indices - (24 if winner != Colour.WHITE else -1))
-        dis_sum = np.sum(distances * np.abs(lastBoardLoc))
-        dis_sum=25* (eat_black+eat_white)+dis_sum
-        
-        max_dist = 105
-            
-        normalized_distance = min(dis_sum / max_dist, 1.0)    
-        for state in board_history:
-            Pcolor = state['color']
-            Hboard = state['board']
-            if winner.value == Pcolor:
-                score = 0.6 + 0.4 * (normalized_distance)
-            else:
-                score = 0.4 * (1-normalized_distance)
-            stateScoreInfo = {'color': Pcolor, 'RL_score': score, 'board': Hboard}
-            new_db.append(stateScoreInfo)
-            #log(f"color:{Pcolor}, board{lastBoard}\n score:{score}")
-        database.extend(new_db)
-        all_dist = np.append(all_dist, dis_sum)
-        print("game ", i+1, " done")
-        
-    #size = database.nbytes
-
-    #play a random game
-    print("database size: ", len(database))
-    #print("database bytes size: ", size)
-    #save the database
-    np.save('database.npy', database, allow_pickle=True)
-    
-    return all_dist"""
+ 
     
 
 def set_RLdatabase():
     Board_Generator_RL(size=200)  # Generates new board states
         
-    # Load the RL-based database
     database = np.load('database.npy', allow_pickle=True)
-    
-    # Extract RL scores (already normalized)
     RL_scores = [entry['RL_score'] for entry in database]
-
-    # Print RL score statistics
-    """print("Min RL score: ", np.min(all_dist))
-    print("Max RL score: ", np.max(all_dist))
-    print("Average RL score: ", np.mean(all_dist))
-    print("Variance of RL score: ", np.var(all_dist))
-    print("Standard deviation of RL score: ", np.std(all_dist))"""
-    #std_all_dist = np.std(all_dist)
-    #scaler = MinMaxScaler(feature_range=(0, 1))
-    #heuristics= np.array([entry['RL_score'] for entry in database], dtype=np.float32).reshape(-1, 1)
-    #qt = QuantileTransformer(output_distribution='uniform', random_state=0)
-    #scaler = MinMaxScaler(feature_range=(0, 1))
-    #normalized_RL = [0 if entry['RL_score'] == 0 else max(0.6,0.6 + 0.4 *(min(1, erf((entry['RL_score'] - 22.72) / (21.99 * 1.414))))) for entry in database]
-    #for i, entry in enumerate(database):
-        #entry['RL_score'] = normalized_RL[i]
-
     # Shuffle the database to introduce randomness
     np.random.shuffle(database)
+    if os.path.exists("RL_database.npy"):
+        old_data = np.load("RL_database.npy", allow_pickle=True)
+        database = np.concatenate((old_data, database))
     np.save('RL_database.npy', database, allow_pickle=True)
-    # Print some random RL-based samples for logging
+    # Print some random RL based samples for logging
     RL_database = np.load('RL_database.npy', allow_pickle=True)
 
-
-    
 
 def log(message, file_path="db.txt"):
     with open(file_path, "a") as log_file:
@@ -308,7 +242,7 @@ def load_training_step():
     if os.path.isfile(TRAINING_STEP_PATH):
         with open(TRAINING_STEP_PATH, "r") as file:
             return int(file.read().strip())
-    return 1  # Start from 1 if file doesn't exist
+    return 1 
 def save_training_step(step):
     """Saves the current training step to file."""
     with open(TRAINING_STEP_PATH, "w") as file:
@@ -364,6 +298,7 @@ if __name__ == '__main__':
             print("Save new DB")
             np.save(RL_database_path, [])
         
+        print(f"RL_database size: {os.path.getsize(RL_database_path)} bytes")
         total_score = 0
         num_games = 10
         for _ in range(num_games):

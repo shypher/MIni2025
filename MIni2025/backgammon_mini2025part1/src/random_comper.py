@@ -62,7 +62,7 @@ class CompareAllMoves_random(Strategy):
 
         # Sort moves by score in ascending order and select the top 4
         move_scores.sort(key=lambda x: x[0])
-        top_moves = move_scores[:4]
+        top_moves = move_scores[:8]
         if top_moves:
             scores = [np.exp(-score) for score, _ in top_moves]  # Use negative score for probability calculation
             total_score = sum(scores)
