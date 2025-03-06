@@ -19,7 +19,7 @@ def log_tree(message, file_path="tree.txt"):
         #log_file.write(message + "\n")
     return
     
-class MCTS_322687153_206000994(Strategy):
+class MCTS_player(Strategy):
     @staticmethod
     def get_difficulty():
         return "shimeh"

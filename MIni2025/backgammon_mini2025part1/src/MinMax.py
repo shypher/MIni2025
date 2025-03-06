@@ -8,7 +8,7 @@ def log(message, file_path="tournament_log.txt"):
     with open(file_path, "a") as log_file:
         log_file.write(message + "\n")
     print(message)
-class MinMax322687153_206000994(Strategy):
+class MinMax_player(Strategy):
     
     @staticmethod
     def get_difficulty():

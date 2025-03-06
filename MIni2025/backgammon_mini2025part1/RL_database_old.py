@@ -62,7 +62,6 @@ def set_database():
     #get the min and max values of heuristic in the database, the average value of the heuristic, variance, and standard deviation
     
     database = np.load('database.npy', allow_pickle=True)
-    scaler = MinMaxScaler(feature_range=(0, 1))
     heuristics= np.array([entry['heuristic_score'] for entry in database], dtype=np.float32).reshape(-1, 1)
     scaler = MinMaxScaler(feature_range=(0, 1))
     normalized_heuristics = scaler.fit_transform(heuristics).flatten()
